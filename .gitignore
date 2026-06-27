@@ -1,0 +1,18 @@
+# Capturas Excel: son pesadas, no van al repo (el histórico se maneja aparte)
+capturas/*.xlsx
+
+# Memoria de comentarios: puede ser grande, se regenera
+comentarios.json
+comentarios_clasificados.json
+
+# Respaldos temporales del scraper
+scrapper_original_backup.py
+scrapper.py
+
+# Datos intermedios
+data.js
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
