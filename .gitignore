@@ -16,3 +16,17 @@ data.js
 # Python
 __pycache__/
 *.pyc
+groq_key.txt
+groq_key.txt
+capturas/
+respaldos/
+base_*.xlsx
+*.bak
+corrida_en_curso.txt
+groq_key.txt
+capturas/
+respaldos/
+base_*.xlsx
+*.bak
+corrida_en_curso.txt
+etapa_actual.txt

@@ -72,7 +72,7 @@ def acciones(params):
                 break
         cola = " && ".join(c.lstrip(" &") for _, c in pasos[desde:])
         return ("python marcar.py inicio & " + cola
-                + " && (echo listo)> etapa_actual.txt && python marcar.py fin")
+                + " && (echo listo)> etapa_actual.txt & python marcar.py fin")
     con_tel = " CON telefonos" if tel else ""
     return {
         # LA corrida diaria, en orden: base -> descripciones de nuevos ->
@@ -90,7 +90,7 @@ def acciones(params):
             f" && python relleno_condicional.py"
             f" && (echo 5/5 clasificar y armar)> etapa_actual.txt"
             f" && python clasificar_ia.py && python ver_comentarios.py"
-            f" && (echo listo)> etapa_actual.txt && python marcar.py fin",
+            f" && (echo listo)> etapa_actual.txt & python marcar.py fin",
         ),
         # retoma la cadena DESDE la etapa donde quedo etapa_actual.txt
         "continuar": (
@@ -101,16 +101,20 @@ def acciones(params):
         "incremental": (
             "Solo base" + con_tel,
             f"python marcar.py inicio & python actualizar_incremental.py{tel}"
-            f" && python actualizar.py --solo-motor && python marcar.py fin",
+            f" && python actualizar.py --solo-motor & python marcar.py fin",
         ),
         # espejo de la cadena, para retomar donde se cayó (sin límite)
         "descripciones": (
             "Descripciones de los nuevos",
-            "python enriquecer_comentarios.py --solo-nuevos",
+            "(echo 2/5 descripciones)> etapa_actual.txt"
+            " & python enriquecer_comentarios.py --solo-nuevos"
+            " && (echo 3/5 fichas tecnicas)> etapa_actual.txt",
         ),
         "specs": (
             "Especificaciones de los nuevos",
-            "python bajar_especificaciones.py --solo-nuevos --limite 0",
+            "(echo 3/5 fichas tecnicas)> etapa_actual.txt"
+            " & python bajar_especificaciones.py --solo-nuevos --limite 0"
+            " && (echo 5/5 clasificar y armar)> etapa_actual.txt",
         ),
         # relleno del fondo histórico, en tandas con fusible
         "descripciones_viejas": (
@@ -127,7 +131,9 @@ def acciones(params):
         ),
         "clasificar": (
             "Clasificar comentarios (IA + palabras) + dashboard",
-            "python clasificar_ia.py && python ver_comentarios.py",
+            "(echo 5/5 clasificar y armar)> etapa_actual.txt"
+            " & python clasificar_ia.py && python ver_comentarios.py"
+            " && (echo listo)> etapa_actual.txt & python marcar.py fin",
         ),
         "dashboard": (
             "Recalcular motor + dashboard",

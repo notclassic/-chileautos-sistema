@@ -122,7 +122,12 @@ def main():
 
     paso("PASO 4 - SUBIR A GITHUB")
     try:
-        subprocess.run(["git", "add", SALIDA, DATOS], check=False)
+        # limpieza automatica de git desactivada: choca con OneDrive y
+        # provoca la lluvia de preguntas y/n. Idempotente, se asegura siempre.
+        subprocess.run(["git", "config", "gc.auto", "0"], check=False)
+        # respalda TODO lo que cambio (codigo, datos, correcciones);
+        # el .gitignore deja afuera clave, capturas y pesados
+        subprocess.run(["git", "add", "-A"], check=False)
         subprocess.run(["git", "commit", "-m",
                         f"Comentarios {datetime.now():%Y-%m-%d %H:%M}"], check=False)
         r = subprocess.run(["git", "push"], capture_output=True, text=True)

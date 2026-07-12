@@ -16,9 +16,9 @@ def firma(nombre):
 
 esperados = {
     'motor.py': 131588,
-    'plantilla_dashboard.html': 144848,
-    'ver_comentarios.py': 6087,
-    'panel.py': 28853,
+    'plantilla_dashboard.html': 144938,
+    'ver_comentarios.py': 6430,
+    'panel.py': 29238,
     'clasificar_ia.py': 7050,
     'scrapper.py': 25836,
 }
