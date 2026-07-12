@@ -94,19 +94,35 @@ def main():
             firmas[firma(c)] += 1
     plantillas = {fz for fz, n in firmas.items() if n >= UMBRAL_PLANTILLA}
 
+    # 1b) lectura IA (clasificar_ia.py), si existe: se FUSIONA con las
+    # palabras clave. La IA entiende el sentido; las palabras son el respaldo.
+    ia = {}
+    if os.path.exists('comentarios_ia.json'):
+        try:
+            with open('comentarios_ia.json', encoding='utf-8') as f:
+                ia = json.load(f)
+            print(f"Lectura IA cargada: {len(ia)} comentarios")
+        except Exception as e:
+            print(f"  aviso: comentarios_ia.json ilegible ({e})")
+
     # 2) clasificar
     salida = {}
     conteo = Counter()
     for idv, d in data.items():
         c = d.get('comentario', '') or ''
         etiquetas = etiquetar(c) if c else []
+        lectura = ia.get(idv) or {}
+        etiquetas += [e for e in (lectura.get('etiquetas_ia') or [])]
         if c and firma(c) in plantillas:
             etiquetas.append('plantilla')
         if not c:
             etiquetas.append('sin_comentario')
-        for e in etiquetas:
+        for e in set(etiquetas):
             conteo[e] += 1
-        salida[idv] = {'comentario': c, 'etiquetas': sorted(set(etiquetas)), 'url': d.get('url', '')}
+        salida[idv] = {'comentario': c, 'etiquetas': sorted(set(etiquetas)),
+                       'url': d.get('url', ''),
+                       'urgencia': lectura.get('urgencia', 0),
+                       'resumen_ia': lectura.get('resumen', '')}
 
     with open(SALIDA, 'w', encoding='utf-8') as f:
         json.dump(salida, f, ensure_ascii=False, indent=1)

@@ -121,21 +121,89 @@ def leer_urls_de_captura(path):
             vid = u.rstrip('/').split('/')[-1].lower()   # id al final de la URL (en minuscula, como en la base)
             if vid:
                 out[vid] = u
+    except KeyError:
+        pass  # base del sistema nuevo: sin hipervinculos (las URLs viven en el estado)
     except Exception as e:
         log(f"  aviso leyendo {os.path.basename(path)}: {e}")
     return out
 
 
-def reunir_pendientes(memoria):
-    archivos = sorted(glob.glob(os.path.join(CARPETA_CAPTURAS, "*.xlsx")))
-    if not archivos:
-        sys.exit(f"No hay capturas en '{CARPETA_CAPTURAS}'.")
-    # id -> url, priorizando la captura mas reciente
+ESTADO_INCREMENTAL = "estado_avisos.csv"
+
+
+def reunir_pendientes(memoria, solo_nuevos=False):
+    """
+    Junta id -> url de dos fuentes y devuelve los pendientes ORDENADOS con los
+    avisos mas nuevos primero (por fecha de primera aparicion):
+
+      1. estado_avisos.csv (el sistema incremental): trae la fecha exacta en
+         que cada aviso se vio por primera vez. Fuente principal.
+      2. Los hipervinculos de las capturas .xlsx (metodo historico): respaldo
+         para avisos anteriores al estado o si el estado no existe.
+
+    solo_nuevos=True: se queda UNICAMENTE con los avisos cuya primera
+    aparicion es HOY (los detectados por la corrida incremental de hoy).
+    """
+    from datetime import date
+    hoy_iso = date.today().isoformat()
+
     id_url = {}
+    primera = {}   # id -> fecha ISO de primera aparicion ("" = desconocida/vieja)
+    particular = set()   # ids cuyo vendedor es Particular (prioridad de descarga)
+
+    # Fuente 1: estado del incremental (manda: define QUE se descarga)
+    vivos = None   # None = no hay estado; set = solo estos son descargables
+    if os.path.exists(ESTADO_INCREMENTAL):
+        vivos = set()
+        import csv as _csv
+        with open(ESTADO_INCREMENTAL, encoding="utf-8", newline="") as f:
+            for row in _csv.DictReader(f):
+                u = (row.get("url") or "").strip()
+                if not u:
+                    continue
+                vid = u.rstrip('/').split('/')[-1].lower()
+                id_url[vid] = u
+                primera[vid] = (row.get("primera_vez") or "").strip()
+                if (row.get("entidad") or "").strip().lower() == "particular":
+                    particular.add(vid)
+                if str(row.get("activo", "1")) != "0":
+                    vivos.add(vid)
+
+    # Fuente 2: capturas (respaldo / historico)
+    archivos = sorted(glob.glob(os.path.join(CARPETA_CAPTURAS, "*.xlsx")))
+    if not archivos and not id_url:
+        sys.exit(f"No hay capturas en '{CARPETA_CAPTURAS}' ni {ESTADO_INCREMENTAL}.")
     for path in archivos:
-        id_url.update(leer_urls_de_captura(path))
-    # pendientes = los que no estan en memoria
-    pendientes = {i: u for i, u in id_url.items() if i not in memoria}
+        for i, u in leer_urls_de_captura(path).items():
+            id_url.setdefault(i, u)
+            primera.setdefault(i, "")
+
+    # Prioridad maxima: los avisos que HOY figuran en el radar de oportunidades
+    # (datos.json). Su descripcion es la que se necesita ANTES de llamar.
+    radar = set()
+    try:
+        if os.path.exists("datos.json"):
+            import json as _json
+            with open("datos.json", encoding="utf-8") as f:
+                for o in (_json.load(f).get("oportunidades") or []):
+                    i = str(o.get("id") or "").lower()
+                    if i:
+                        radar.add(i)
+    except Exception:
+        pass
+
+    pend_ids = [i for i in id_url if i not in memoria]
+    if vivos is not None:
+        # sin gastar pedidos en avisos muertos o dados de baja hace meses
+        pend_ids = [i for i in pend_ids if i in vivos]
+    if solo_nuevos:
+        pend_ids = [i for i in pend_ids if primera.get(i) == hoy_iso or i in radar]
+    # Orden: 1) oportunidades del radar, 2) PARTICULARES antes que automotoras
+    # (ahi esta el negocio), 3) mas nuevos primero (ISO ordena bien como
+    # texto; "" = viejo, queda al final)
+    pend_ids.sort(key=lambda i: (i in radar, i in particular,
+                                 primera.get(i, "")), reverse=True)
+    pendientes = {i: id_url[i] for i in pend_ids}
     return id_url, pendientes
 
 
@@ -148,24 +216,65 @@ def main():
                     help='maximo de avisos a procesar en esta corrida (0 = sin limite)')
     ap.add_argument('--rapido', action='store_true',
                     help='pausas mas cortas (mas riesgo de bloqueo)')
+    ap.add_argument('--continuo', action='store_true',
+                    help='modo goteo: nunca termina, vuelve a buscar nuevos cada tanto')
+    ap.add_argument('--solo-nuevos', action='store_true',
+                    help='procesar SOLO los avisos detectados como nuevos HOY por el incremental')
     args = ap.parse_args()
 
     pmin, pmax = (PAUSA_MIN_RAPIDO, PAUSA_MAX_RAPIDO) if args.rapido else (PAUSA_MIN, PAUSA_MAX)
 
-    memoria = cargar_memoria()
-    id_url, pendientes = reunir_pendientes(memoria)
-    total_pend = len(pendientes)
-
-    log(f"Avisos en memoria: {len(memoria)} | total en capturas: {len(id_url)}")
-    log(f"Pendientes (publicaciones nuevas sin comentario): {total_pend}")
-    if total_pend == 0:
-        log("Nada que hacer. Todo enriquecido.")
+    if args.continuo:
+        modo_continuo(pmin, pmax)
         return
 
-    objetivo = args.limite if args.limite > 0 else total_pend
-    log(f"Voy a procesar hasta {min(objetivo, total_pend)} en esta corrida. "
-        f"Ritmo: {'rapido' if args.rapido else 'lento'} ({pmin}-{pmax}s entre avisos).")
-    log("Cortar con Ctrl+C en cualquier momento: guarda y se puede retomar.\n")
+    _una_pasada(pmin, pmax, args.limite, solo_nuevos=args.solo_nuevos)
+
+
+def modo_continuo(pmin, pmax):
+    """
+    Goteo permanente: procesa los pendientes, y cuando no quedan, espera un
+    rato (con algo de azar) y vuelve a buscar publicaciones nuevas. No termina
+    hasta que lo cortes con Ctrl+C. Pensado para dejarlo corriendo todo el dia.
+    """
+    ESPERA_SIN_NUEVOS_MIN = 600    # 10 min si no hay nada nuevo
+    ESPERA_SIN_NUEVOS_MAX = 1200   # 20 min
+    log("MODO CONTINUO (goteo). Dejalo corriendo. Cortar con Ctrl+C.")
+    log("Procesa lo nuevo, guarda, y cada tanto vuelve a mirar.\n")
+    while not _parar:
+        procesados = _una_pasada(pmin, pmax, 0, silencioso_si_vacio=True)
+        if _parar:
+            break
+        if procesados == 0:
+            espera = random.uniform(ESPERA_SIN_NUEVOS_MIN, ESPERA_SIN_NUEVOS_MAX)
+            log(f"Sin publicaciones nuevas. Vuelvo a mirar en {espera/60:.0f} min.")
+            # dormir en tramos para poder cortar con Ctrl+C
+            t = 0
+            while t < espera and not _parar:
+                time.sleep(2)
+                t += 2
+    log("Modo continuo detenido.")
+
+
+def _una_pasada(pmin, pmax, limite, silencioso_si_vacio=False, solo_nuevos=False):
+    """Procesa los pendientes una vez. Devuelve cuantos proceso."""
+    memoria = cargar_memoria()
+    id_url, pendientes = reunir_pendientes(memoria, solo_nuevos=solo_nuevos)
+    total_pend = len(pendientes)
+
+    if total_pend == 0:
+        if not silencioso_si_vacio:
+            if solo_nuevos:
+                log("No hay avisos NUEVOS de hoy sin descripcion. Nada que hacer.")
+            else:
+                log(f"Avisos en memoria: {len(memoria)} | total conocidos: {len(id_url)}")
+                log("Nada que hacer. Todo enriquecido.")
+        return 0
+
+    log(f"Pendientes: {total_pend} | en memoria: {len(memoria)}")
+    objetivo = limite if limite > 0 else total_pend
+    log(f"Proceso hasta {min(objetivo, total_pend)}. "
+        f"Ritmo {pmin}-{pmax}s entre avisos. Ctrl+C para cortar.\n")
 
     procesados = 0
     con_texto = 0
@@ -190,8 +299,7 @@ def main():
                     log(f"  BLOQUEO {resp.status_code} (#{bloqueos_seguidos}). "
                         f"Espero {ESPERA_BLOQUEO//60} min...")
                     if bloqueos_seguidos >= MAX_BLOQUEOS_SEGUIDOS:
-                        log("  Demasiados bloqueos seguidos. Corto la corrida para "
-                            "no insistir. Proba mas tarde o mas lento.")
+                        log("  Demasiados bloqueos seguidos. Corto para no insistir.")
                         break
                     time.sleep(ESPERA_BLOQUEO)
                     continue
@@ -202,7 +310,6 @@ def main():
 
             procesados += 1
 
-            # Guardar cada 25 para no perder avance si se corta
             if procesados % 25 == 0:
                 guardar_memoria(memoria)
                 elapsed = time.time() - inicio
@@ -211,17 +318,16 @@ def main():
                 eta = time.strftime('%H:%M:%S', time.gmtime(rest / vel)) if vel else '?'
                 log(f"  {procesados} procesados | {con_texto} con comentario | ETA {eta}")
 
-            # Pausa aleatoria (defensa principal sin proxies)
             if procesados % CADA_N_PAUSA_LARGA == 0:
                 time.sleep(random.uniform(PAUSA_LARGA_MIN, PAUSA_LARGA_MAX))
             else:
                 time.sleep(random.uniform(pmin, pmax))
 
     guardar_memoria(memoria)
-    log(f"\nCorrida terminada. Procesados {procesados} | con comentario {con_texto} | "
+    log(f"Pasada terminada. Procesados {procesados} | con comentario {con_texto} | "
         f"memoria total {len(memoria)}.")
-    if not _parar and procesados < total_pend:
-        log(f"Quedan {total_pend - procesados} pendientes. Volve a correr para seguir.")
+    return procesados
+
 
 
 if __name__ == '__main__':

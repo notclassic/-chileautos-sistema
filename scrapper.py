@@ -257,8 +257,16 @@ async def fetch_and_process(url, session, cookies, productos_totales):
 
 
 async def obtener_productos_con_sesion_async():
+    # -----------------------------------------------------------------
+    # NÚMERO DE PÁGINAS A RECORRER
+    # Normal (todo el catálogo): 3500
+    # PRUEBA rápida (segundos):  poné 20
+    # Cambiá SOLO el número de acá abajo.
+    # -----------------------------------------------------------------
+    TOTAL_PAGINAS = 3500  # catalogo COMPLETO (antes 20: valor de prueba que quedo pegado)
+
     paginas = [
-        ['https://www.chileautos.cl/mobiapi/chileautos/v1/stock/listing?p=TipoVeh%C3%ADculo.Autos.&pg=', 3500],
+        ['https://www.chileautos.cl/mobiapi/chileautos/v1/stock/listing?p=TipoVeh%C3%ADculo.Autos.&pg=', TOTAL_PAGINAS],
     ]
     productos_totales = []
     

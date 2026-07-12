@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chileautos · Inteligencia de Mercado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef3f8; --panel:#fff; --panel2:#f3f7fb; --line:#dde6ee;
+    --ink:#16314a; --muted:#5e7488; --dim:#9bacbd;
+    --signal:#1689d4; --accent:#f47a1f; --good:#1a9b54; --bad:#e0364f;
+    --shadow:0 1px 3px rgba(20,49,74,.06),0 1px 2px rgba(20,49,74,.04);
+    --shadow-lg:0 12px 40px rgba(20,49,74,.14);
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace; --sans:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  .ctlbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:1240px;margin:0 auto;
+          padding:10px 24px;border-top:1px solid var(--line);background:var(--panel2)}
+  .ctlbar .lbl{font-size:11px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;
+               letter-spacing:.6px;margin-right:4px}
+  .cbtn{background:var(--signal);color:#fff;border:none;border-radius:8px;padding:8px 14px;
+        font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .cbtn.sec{background:var(--panel);color:var(--signal);border:1px solid var(--signal)}
+  .cbtn:hover{opacity:.85}
+  .ctlbar input[type=number]{width:70px;padding:7px;border:1px solid var(--line);border-radius:8px;
+        font-size:12px;background:var(--panel)}
+  #ctl-msg{font-size:12px;font-family:var(--mono);margin-left:auto}
+  .stq{font-size:12px;font-family:var(--mono);padding:5px 10px;border-radius:8px}
+  .stq.run{background:#fff3d6;color:#8a5b00;animation:parp 1.6s ease-in-out infinite}
+  .stq.done{background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+  .stq.warn{background:#ffe3e0;color:#8f2318}
+  @keyframes parp{50%{opacity:.55}}
+  .cbtn:disabled{opacity:.45;cursor:default}
+  #ctl-extra{display:none;width:100%;padding-top:8px;border-top:1px dashed var(--line);margin-top:6px}
+  #ctl-extra.vis{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #ctl-msg.ok{color:var(--good)} #ctl-msg.err{color:var(--bad)}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+  .head-row{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;max-width:1240px;margin:0 auto;flex-wrap:wrap;gap:12px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{width:40px;height:40px;border-radius:9px;background:var(--signal);display:grid;place-items:center;font-weight:800;color:#fff;font-size:18px;font-family:var(--mono)}
+  .brand h1{font-size:17px;font-weight:700}
+  .brand p{font-size:12px;color:var(--muted);font-family:var(--mono)}
+  .cap{text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .cap b{color:var(--signal);font-weight:500}
+  nav{border-bottom:1px solid var(--line);background:var(--bg)}
+  .tabs{display:flex;gap:2px;max-width:1240px;margin:0 auto;padding:0 16px;overflow-x:auto}
+  .tab{padding:14px 18px;font-size:13px;font-weight:500;color:var(--muted);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:var(--sans)}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--signal);border-bottom-color:var(--signal)}
+  main{padding:28px 0 80px}
+  .view{display:none}.view.active{display:block}
+  .lead{font-size:15px;color:var(--muted);margin-bottom:22px;max-width:760px}
+  .lead b{color:var(--ink);font-weight:600}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:26px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-family:var(--mono);margin-bottom:10px}
+  .kpi .val{font-size:30px;font-weight:800;letter-spacing:-1px;font-family:var(--mono)}
+  .kpi .sub{font-size:12px;color:var(--dim);margin-top:6px}
+  .kpi.gold .val{color:var(--accent)}.kpi.good .val{color:var(--good)}.kpi.blue .val{color:var(--signal)}
+  .section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:0 0 14px;font-family:var(--mono)}
+  .viewbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .vbtn{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:9px 15px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans)}
+  .vbtn span{font-family:var(--mono);font-size:12px;opacity:.7;margin-left:4px}
+  .vbtn:hover{color:var(--ink);border-color:var(--dim)}
+  .vbtn.active{background:rgba(22,137,212,.1);border-color:var(--signal);color:var(--signal)}
+  .vhint{font-size:12px;color:var(--dim);margin-bottom:14px;font-family:var(--mono)}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  select,input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:9px 12px;border-radius:8px;font-family:var(--sans);font-size:13px;outline:none}
+  select:focus,input:focus{border-color:var(--signal)}
+  .table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;padding:10px 10px;background:var(--panel2);color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer}
+  thead th:hover{color:var(--ink)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody tr:hover{background:var(--panel2)}
+  tbody tr:last-child td{border-bottom:none}
+  .veh{font-weight:600}.veh small{display:block;color:var(--dim);font-weight:400;font-size:11px;margin-top:2px}
+  .num{font-family:var(--mono);text-align:right}
+  .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;font-family:var(--mono)}
+  .b-gold{background:rgba(244,122,31,.12);color:var(--accent)}
+  .b-good{background:rgba(26,155,84,.12);color:var(--good)}
+  .b-part{background:rgba(22,137,212,.1);color:var(--signal)}
+  .b-auto{background:rgba(94,116,136,.12);color:var(--muted)}
+  .b-warn{background:rgba(224,54,79,.1);color:var(--bad)}
+  .link-btn{display:inline-flex;gap:4px;background:rgba(22,137,212,.1);color:var(--signal);padding:5px 10px;border-radius:7px;font-size:12px;text-decoration:none;font-weight:500}
+  .link-btn:hover{background:rgba(22,137,212,.18)}
+  .speed{display:inline-flex;align-items:center;gap:7px}
+  .speed .bar{height:7px;border-radius:4px;min-width:4px}
+  .speed .v{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .rotbar{display:flex;gap:16px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:24px;box-shadow:var(--shadow)}
+  .rb{flex:1;min-width:140px}
+  .rb .l{font-size:11px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
+  .rb .v{font-size:24px;font-weight:800;font-family:var(--mono);margin-top:4px}
+  .rb .d{font-size:11px;color:var(--dim);margin-top:2px}
+  .callout{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:14px 16px;font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+  .callout b{color:var(--ink)}
+  .ed-chip button{background:none;border:none;color:var(--bad);cursor:pointer;font-size:13px;line-height:1;padding:0}
+  .ed-del{background:none;border:1px solid var(--line);color:var(--bad);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--mono)}
+  .ed-empty{color:var(--dim);font-size:13px;padding:20px 4px}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(20,49,74,.4);backdrop-filter:blur(3px);z-index:200;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:100%;max-width:860px;box-shadow:var(--shadow-lg);animation:pop .2s ease}
+  #modal .modal{max-height:95vh;max-width:96vw;width:96vw}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 24px 14px;border-bottom:1px solid var(--line)}
+  .modal-head h3{font-size:17px;font-weight:700}
+  .modal-head p{font-size:13px;color:var(--muted);margin-top:4px}
+  .modal-x{background:var(--panel2);border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
+  .modal-x:hover{color:var(--ink);border-color:var(--dim)}
+  .recalc{display:flex;gap:14px;flex-wrap:wrap;padding:16px 24px;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .rc{flex:1;min-width:120px}
+  .rc .l{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-family:var(--mono)}
+  .rc .v{font-size:19px;font-weight:800;font-family:var(--mono);margin-top:3px}
+  .rc .d{font-size:11px;color:var(--dim);margin-top:2px}
+  .rc.hl .v{color:var(--signal)}
+  .modal-body{padding:16px 24px;max-height:46vh;overflow-y:auto}
+  #m-table thead th{position:sticky;top:0}
+  #m-table tbody tr.self{background:rgba(22,137,212,.07)}
+  #m-table tbody tr.self td:first-child::after{content:' ◀ este';color:var(--signal);font-size:10px;font-family:var(--mono)}
+  #m-table tbody tr.excluded{opacity:.38}
+  #m-table tbody tr.excluded td:not(:first-child){text-decoration:line-through}
+  .modal-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  input[type=checkbox]{accent-color:var(--signal);width:16px;height:16px;cursor:pointer}
+  @media(max-width:880px){.g2,.g3,.tasador{grid-template-columns:1fr}.capture{display:none}}
+  .comp-btn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--mono)}
+  .comp-btn:hover{border-color:var(--signal);color:var(--signal)}
+#op-table thead th[data-k]{cursor:pointer;user-select:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-row">
+    <div class="brand">
+      <div class="logo">CA</div>
+      <div><h1>Chileautos · Inteligencia de Mercado</h1><p id="sub">rotación · oportunidades · precio justo</p></div>
+    </div>
+    <div class="cap" id="cap"></div>
+  </div>
+  <div class="ctlbar">
+    <button class="cbtn" id="ctl-bajar" onclick="ctl('todo',this)">Bajar base</button>
+    <button class="cbtn" id="ctl-regen" onclick="ctl('regenerar',this)" title="Corre python ver_comentarios.py: motor + dashboard. Cuando la ventana termine, apretá Ctrl+F5 acá.">Regenerar dashboard</button>
+    <span id="ctl-status" class="stq"></span>
+    <label style="font-size:12px;display:flex;align-items:center;gap:5px;color:var(--muted)">
+      <input type="checkbox" id="ctl-tel"> incluir teléfonos</label>
+    <button class="cbtn sec" onclick="document.getElementById('ctl-extra').classList.toggle('vis')">Más opciones</button>
+    <span id="ctl-msg"></span>
+    <div id="ctl-extra">
+      <style>
+        #ctl-extra .grp{margin:2px 0 16px}
+        #ctl-extra .grp-tit{font-size:13px;font-weight:600;color:var(--ink,#1f2937);margin-bottom:2px}
+        #ctl-extra .grp-sub{font-size:12px;color:var(--muted);margin-bottom:9px;max-width:640px;line-height:1.4}
+        #ctl-extra .acc{display:flex;align-items:flex-start;gap:10px;padding:6px 0}
+        #ctl-extra .acc .cbtn{flex:0 0 auto;min-width:190px}
+        #ctl-extra .acc .exp{font-size:12px;color:var(--muted);line-height:1.4;padding-top:6px}
+      </style>
+
+      <div class="grp">
+        <div class="grp-tit">Correr una pieza suelta</div>
+        <div class="grp-sub">Cada botón corre <b>solo esa parte</b>, sin encadenar el resto. Útil para bajar una porción puntual, o para retomar si una corrida se cayó a mitad.</div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('incremental',this)">Solo base</button>
+          <span class="exp">Baja el catálogo del día (precios, km, avisos nuevos y vendidos). No baja descripciones ni fichas.</span>
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('descripciones',this)">Solo descripciones de nuevos</button>
+          <span class="exp">Baja el texto del vendedor de los avisos nuevos, para extraer etiquetas (único dueño, urgente, dañado…).</span>
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('specs',this)">Solo specs de nuevos</button>
+          <span class="exp">Baja la ficha técnica oficial de los avisos nuevos (versión exacta, cilindrada, equipamiento).</span>
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('clasificar',this)">Clasificar + dashboard</button>
+          <span class="exp">Relee descripciones con IA y palabras clave, y recalcula. <b>Local, no gasta pedidos ni IP.</b></span>
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('dashboard',this)">Recalcular dashboard</button>
+          <span class="exp">Rehace tasaciones, oportunidades y depuración con los datos ya bajados. <b>Local, no toca internet.</b></span>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-tit">Rellenar antiguos (manual)</div>
+        <div class="grp-sub">Completa a mano descripciones o fichas de autos <b>viejos</b> que aún no las tienen, en tandas del tamaño que elijas. Consume pedidos: hacelo con la IP descansada.</div>
+        <div class="acc" style="align-items:center">
+          <span style="font-size:12px;color:var(--muted)">Tamaño de la tanda:</span>
+          <input type="number" id="ctl-limite" value="300" min="1" title="cuántos autos antiguos procesar" style="width:80px">
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('descripciones_viejas',this)">Descripciones antiguas</button>
+          <span class="exp">Baja el texto del vendedor de autos viejos sin descripción, hasta completar la tanda.</span>
+        </div>
+        <div class="acc">
+          <button class="cbtn sec" onclick="ctl('specs_viejas',this)">Specs antiguas</button>
+          <span class="exp">Baja la ficha técnica de autos viejos sin ficha, hasta completar la tanda.</span>
+        </div>
+      </div>
+
+      <div class="grp" style="margin-bottom:2px">
+        <div class="grp-tit">Relleno histórico automático</div>
+        <div class="grp-sub">Si lo activás, la <b>primera corrida de cada día</b> rellena sola 150 descripciones + 150 fichas de autos antiguos (~300 pedidos extra). Dejalo en stand by salvo que arranques con la IP bien descansada.</div>
+        <label style="font-size:13px;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:7px">
+          <input type="checkbox" id="ctl-relleno" onchange="setRelleno(this)">
+          <span id="ctl-relleno-txt">cargando…</span>
+        </label>
+      </div>
+    </div>
+  </div>
+  <nav><div class="tabs">
+    <button class="tab active" data-view="radar">Radar de oportunidades</button>
+    <button class="tab" data-view="rotacion" style="display:none">Rotación de mercado</button>
+    <button class="tab" data-view="mercado" style="display:none">Análisis de mercado</button>
+    <button class="tab" data-view="bi">Análisis de mercado</button>
+    <button class="tab" data-view="tasador">Tasador</button>
+    <button class="tab" data-view="versiones" style="display:none">Arreglar versiones</button>
+    <button class="tab" data-view="generaciones" style="display:none">Generaciones</button>
+    <button class="tab" data-view="depuracion">Depuración BBDD (avanzado)</button>
+  </div></nav>
+</header>
+<main><div class="wrap">
+
+  <!-- TASADOR -->
+  <section class="view" id="tasador">
+    <p class="lead">Tasación en base al histórico de avisos capturados. Elegí el auto y el sistema
+    busca el nivel más fino con datos: versión oficial (ficha) → versión de texto → modelo completo.
+    Los precios son de <b>oferta publicada</b> (lo que piden, no lo que pagan).</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:14px 0">
+      <label style="font-size:12px">Marca<br><select id="ts-ma" onchange="tsMarca()" style="min-width:140px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Modelo<br><select id="ts-mo" onchange="tsModelo()" style="min-width:150px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Versión<br><select id="ts-ver" onchange="tsVersion()" style="min-width:230px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Año<br><select id="ts-año" style="min-width:90px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Kilometraje<br><input id="ts-km" type="number" placeholder="ej: 85000" style="width:110px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <button class="cbtn" onclick="tsTasar()">Tasar</button>
+    </div>
+    <div id="ts-out"></div>
+  </section>
+
+  <!-- MERCADO -->
+  <section class="view" id="bi">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">Tablero de mercado</div>
+      <p class="lead" style="margin:0">Filtrá el segmento que te interesa: todos los indicadores y widgets se recalculan al instante sobre esos avisos.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+      <label style="font-size:11px">Marca<br><select id="bi-marca" onchange="biMarca()" style="min-width:130px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:11px">Modelo<br><select id="bi-modelo" onchange="biGens();biRender()" style="min-width:150px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:11px">Gen<br><select id="bi-gen" onchange="biRender()" style="min-width:90px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:11px">Año desde<br><input id="bi-a0" type="number" placeholder="2010" oninput="biRender()" style="width:80px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <label style="font-size:11px">hasta<br><input id="bi-a1" type="number" placeholder="2026" oninput="biRender()" style="width:80px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <label style="font-size:11px">Precio desde (M)<br><input id="bi-p0" type="number" placeholder="0" oninput="biRender()" style="width:90px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <label style="font-size:11px">hasta (M)<br><input id="bi-p1" type="number" placeholder="100" oninput="biRender()" style="width:90px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <label style="font-size:11px">Segmento<br><select id="bi-seg" onchange="biRender()" style="min-width:130px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"><option value="">todos</option></select></label>
+      <label style="font-size:11px">Vendedor<br><select id="bi-vend" onchange="biRender()" style="min-width:110px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)">
+        <option value="">todos</option><option>Particular</option><option>Automotora</option></select></label>
+      <button onclick="biLimpiar()" style="padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;font-size:11px">limpiar filtros</button>
+    </div>
+    <div id="bi-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Distribución por año</div>
+        <div id="bi-anios"></div>
+      </div>
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px" title="Días desde que el sistema detectó cada aviso. Los viejos suelen ser vendedores negociables.">Antigüedad del inventario (días en mercado)</div>
+        <div id="bi-antig"></div>
+      </div>
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Composición técnica del segmento</div>
+        <div id="bi-comp"></div>
+      </div>
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px" title="Composición del canal de venta y prima de precio del canal formal sobre el informal.">Canales del segmento</div>
+        <div id="bi-canales"></div>
+      </div>
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;grid-column:1/-1">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px" title="Avisos que bajaron de precio entre las dos últimas capturas comparadas. Vendedores ablandándose en vivo.">Bajas de precio (última comparación)</div>
+        <div id="bi-bajas" style="max-height:340px;overflow:auto;margin-bottom:14px"></div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">Rotación del mercado</div>
+        <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Si acá ves 0% en todo: la rotación necesita pasadas completas del catálogo (Más opciones → límite 3000, ideal nocturna, 1-2 veces por semana). Las pasadas cortas de 20 páginas solo detectan avisos nuevos.</p>
+        <div id="bi-rotwrap"></div>
+      </div>
+      <div class="bi-card" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Cruce rápido</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <select id="bi-dim" onchange="biRender()" style="padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:11px">
+            <option value="marca">por marca</option><option value="modelo">por modelo</option>
+            <option value="gen">por generación</option><option value="anio">por año</option>
+            <option value="ver">por versión ajustada</option><option value="vend">por vendedor</option>
+            <option value="seg">por segmento</option></select>
+          <select id="bi-met" onchange="biRender()" style="padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:11px">
+            <option value="n">avisos</option><option value="pmed">precio mediano</option>
+            <option value="kmed">km mediano</option><option value="dmed">días en mercado (mediana)</option></select>
+        </div>
+        <div id="bi-cruce" style="max-height:320px;overflow:auto"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="mercado">
+    <p class="lead">Análisis del mercado de usados con tu base activa. Los porcentajes son sobre avisos publicados (oferta), no ventas cerradas.</p>
+    <div id="mkt-kpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px"></div>
+
+    <h3 style="font-size:15px;margin:22px 0 4px">🚩 Señales de alerta — modelos que se revenden casi nuevos</h3>
+    <p class="lead" style="margin:0 0 10px">Alto % de autos de 0-1 año a la venta. Puede indicar problemas del modelo, arrepentimiento de compra, o flotas/rent-a-car liquidando. Mirar con cuidado antes de comprar.</p>
+    <div id="mkt-alertas"></div>
+
+    <h3 style="font-size:15px;margin:26px 0 4px">💰 Retención de valor por marca</h3>
+    <p class="lead" style="margin:0 0 10px">Cuánto conserva su precio una marca entre 0 y 3 años. <b>Baja retención = peor reventa pero mejor compra usada</b> (comprás barato lo que otro depreció). Alta retención = paga bien al revender.</p>
+    <div id="mkt-deprec"></div>
+
+    <h3 style="font-size:15px;margin:26px 0 4px">🎯 Dónde hay más oportunidades por segmento</h3>
+    <p class="lead" style="margin:0 0 10px">% de avisos que son oportunidad de oro en cada tipo de auto.</p>
+    <div id="mkt-seg"></div>
+
+    <h3 style="font-size:15px;margin:26px 0 4px">📊 Panorama por marca</h3>
+    <p class="lead" style="margin:0 0 10px">Volumen, precio mediano, antigüedad típica y cuánto es venta de particular. Ordená haciendo click en los encabezados.</p>
+    <div class="table-scroll"><table class="tbl" id="mkt-marca-tbl"><thead><tr>
+      <th data-mk="marca">Marca</th><th class="num" data-mk="avisos">Avisos</th>
+      <th class="num" data-mk="precio_med">Precio mediano</th>
+      <th class="num" data-mk="antiguedad_med">Antigüedad típica</th>
+      <th class="num" data-mk="km_med">Km mediano</th>
+      <th class="num" data-mk="pct_particular">% Particular</th>
+    </tr></thead><tbody id="mkt-marca"></tbody></table></div>
+
+    <p class="lead" id="mkt-nota" style="margin-top:16px"></p>
+  </section>
+
+  <!-- ARREGLAR VERSIONES POR MODELO -->
+  <section class="view" id="versiones">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Arreglar las versiones de un modelo</div>
+      <p class="lead" style="margin:0">
+        Elegí un modelo y el sistema te propone sus <b>versiones reales</b> (agrupando las mil formas
+        distintas en que los vendedores las escriben). Revisá, y si dos grupos son la misma versión,
+        <b>fusionalos</b>; si uno está mal, <b>corregí su nombre</b> o <b>excluilo</b>. Cada cambio mejora
+        el precio justo de todo ese modelo.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <label style="font-size:12px">Marca<br>
+        <select id="vm-marca" onchange="vmMarca()" style="min-width:150px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Modelo<br>
+        <select id="vm-modelo" onchange="vmCargar()" style="min-width:180px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <div style="flex:1"></div>
+      <span id="vm-fusion-info" style="font-size:12px;color:var(--muted)"></span>
+      <button class="cbtn sec" id="vm-fusionar" style="display:none" onclick="vmFusionar()">Fusionar seleccionadas</button>
+      <button class="cbtn" onclick="vmGuardar(this)">Guardar cambios</button>
+      <span id="vm-msg" style="font-size:12px;font-family:var(--mono)"></span>
+    </div>
+    <div id="vm-resumen" style="font-size:13px;color:var(--muted);margin-bottom:10px"></div>
+    <div id="vm-lista"></div>
+  </section>
+
+  <!-- GENERACIONES -->
+  <section class="view" id="generaciones">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Corregir generaciones de un modelo</div>
+      <p class="lead" style="margin:0">
+        Los cortes de generación salen de info internacional (Wikipedia), pero en Chile los autos
+        pueden haber llegado otro año, o mantener una generación que afuera ya cambió. Acá ajustás
+        los <b>rangos de años por generación</b> de cada modelo, y corregís avisos puntuales que el
+        sistema clasificó mal. <b>Ojo:</b> un año puede tener dos generaciones si el cambio fue a mitad
+        de año — dejá que se solapen y el sistema los marca para revisar por fotos.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <label style="font-size:12px">Marca<br>
+        <select id="gm-marca" onchange="gmMarca()" style="min-width:150px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Modelo<br>
+        <select id="gm-modelo" onchange="gmCargar()" style="min-width:180px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+    </div>
+    <div id="gm-panel" style="display:none">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Rangos de generación</div>
+      <div id="gm-rangos"></div>
+      <button class="cbtn sec" onclick="gmAgregarRango()" style="margin-top:8px">+ Agregar generación</button>
+      <div style="display:flex;gap:10px;align-items:center;margin:14px 0">
+        <button class="cbtn" onclick="gmGuardarRangos(this)">Guardar cortes de años</button>
+        <span id="gm-msg" style="font-size:12px;font-family:var(--mono)"></span>
+      </div>
+      <div style="font-size:14px;font-weight:600;margin:18px 0 8px">Avisos de este modelo (corregí los mal clasificados)</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">La generación se asigna por el año. Si un aviso está mal (lo confirmaste por fotos), fijá su generación real acá — eso manda sobre el corte automático.</div>
+      <div id="gm-avisos"></div>
+    </div>
+  </section>
+
+  <!-- DEPURACION -->
+  <section class="view" id="depuracion">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Depuración por modelo — todos los avisos, fila por fila</div>
+      <p class="lead" style="margin:0">Elegí un modelo y mirá cada aviso con su generación, la versión que escribió el vendedor, la <b>versión ajustada</b> que propone el sistema (ficha oficial, o deducción ≈), los datos de ficha y el comentario. Corregí la versión de un aviso con el ✏ — tu corrección manda sobre todo.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+      <label style="font-size:12px">Marca<br>
+        <select id="db-marca" onchange="dbMarca()" style="min-width:150px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Modelo<br>
+        <select id="db-modelo" onchange="dbCargar()" style="min-width:180px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></select></label>
+      <label style="font-size:12px">Buscar en versión/comentario<br>
+        <input id="db-busca" oninput="dbRender()" placeholder="ej: allure, gt, furgón..." style="min-width:220px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></label>
+      <button id="db-ficha-btn" onclick="dbToggleFicha()" style="padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;font-size:12px">Mostrar ficha técnica</button>
+    </div>
+    <div id="db-gens" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div id="db-resumen" style="margin-bottom:10px"></div>
+    <div id="db-info" style="font-size:12px;color:var(--muted);margin-bottom:6px"></div>
+    <div class="table-scroll" style="border-radius:10px;max-height:80vh;overflow:auto">
+      <div id="db-tabla"></div>
+    </div>
+    <div style="display:none">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">¿Qué es esta pantalla y para qué sirve?</div>
+      <p class="lead" style="margin:0 0 8px">
+        El sistema agrupa los autos para calcular el <b>precio justo</b>. A veces mete en la misma bolsa
+        versiones que no deberían compararse (un GT con un Active, un furgón con un familiar). Acá los
+        <b>corregís vos</b>, y cada corrección mejora todas las tasaciones futuras de ese modelo.
+      </p>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">
+        <b>Cómo usarla, en 3 pasos:</b><br>
+        1. Mirá la columna <b>Dispersión</b>: si es alta ((!)), ese grupo mezcla autos de precio muy distinto — es candidato a corregir.<br>
+        2. Mirá <b>Ejemplos</b> y <b>Specs</b>: te muestran qué versiones cayeron juntas. Si ves que mezcla cosas distintas, escribí en <b>Versión canónica</b> el nombre correcto que las unifique, o marcá <b>Excluir</b> si es basura (un modelo mal escrito).<br>
+        3. <b>Guardar cambios</b>. En el próximo "Clasificar + dashboard" el precio justo se recalcula con tu corrección.
+      </div>
+      <p class="lead" style="margin:8px 0 0;font-size:12px">
+        <b>Consejo:</b> no intentes depurar todo. Empezá por los 20-30 modelos que más comprás/mirás — son el 80% de tu radar. El resto puede esperar.
+        Las generaciones (gen I/II/III por año) se editan aparte en <span class="mono">generaciones.xlsx</span>.
+      </p>
+    </div>
+    <div class="filters">
+      <input type="text" id="dep-buscar" placeholder="Buscar marca o modelo…">
+      <select id="dep-filtro">
+        <option value="">Todas las firmas</option>
+        <option value="sin">Solo sin firma reconocible</option>
+        <option value="pend">Solo sin canónica confirmada</option>
+        <option value="rev">(!) Posible sub-versión oculta (revisar primero)</option>
+      </select>
+      <button class="cbtn" onclick="guardarDepuracion(this)">Guardar cambios</button>
+      <span id="dep-msg" style="font-size:12px;font-family:var(--mono)"></span>
+    </div>
+    <div class="table-scroll">
+      <table class="tbl"><thead><tr>
+        <th>Marca / Modelo</th><th>Gen</th><th>Firma detectada</th><th class="num">Avisos</th>
+        <th class="num">Mediana</th><th>Años</th><th>Versión canónica (editar)</th><th>Excluir</th>
+      </tr></thead><tbody id="dep-body"></tbody></table>
+    </div>
+    <p class="lead" id="dep-nota" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <!-- ROTACION -->
+  <section class="view" id="rotacion">
+    <p class="lead">Qué tan rápido se mueve cada modelo. Comparando dos capturas, medimos cuántos avisos <b>salieron del mercado</b> (proxy de venta) y estimamos los días que tarda en venderse.</p>
+    <div class="rotbar" id="rotbar"></div>
+    <div class="callout" id="rot-note"></div>
+    <p class="section-title">Velocidad de venta por modelo</p>
+    <div class="viewbtns">
+      <button class="vbtn active" data-inv="alto">Alto inventario <span id="c-alto"></span></button>
+      <button class="vbtn" data-inv="bajo">Bajo inventario <span id="c-bajo"></span></button>
+      <button class="vbtn" data-inv="todos">Todos <span id="c-todos"></span></button>
+    </div>
+    <p class="vhint" id="inv-hint"></p>
+    <div class="filters">
+      <input type="text" id="rot-buscar" placeholder="Buscar marca o modelo…">
+      <select id="rot-orden">
+        <option value="rapido">Más rápidos primero</option>
+        <option value="lento">Más lentos primero</option>
+        <option value="stock">Mayor stock</option>
+      </select>
+      <span style="color:var(--dim);font-size:12px;margin-left:auto" id="rot-count"></span>
+    </div>
+    <div class="table-scroll">
+      <table id="rot-table"><thead><tr>
+        <th data-k="modelo">Modelo</th>
+        <th data-k="stock" class="num">Stock inicial</th>
+        <th data-k="salieron" class="num">Salieron</th>
+        <th data-k="tasa_salida" class="num">% que salió</th>
+        <th data-k="dias_venta_est" class="num">Días venta est.</th>
+        <th data-k="velocidad">Velocidad</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <!-- RADAR -->
+  <section class="view active" id="radar">
+    <p class="lead">Vehículos con precio por debajo del precio justo de su segmento (misma marca y modelo, ±3 años, ajustado por kilometraje), o con bajo uso anual.</p>
+    <div class="kpis">
+      <div class="kpi gold"><div class="lbl">Oportunidades de oro</div><div class="val" id="k-oro"></div><div class="sub">precio bajo + bajo km</div></div>
+      <div class="kpi good"><div class="lbl">Bajo precio (≥15%)</div><div class="val" id="k-precio"></div><div class="sub">vs. precio justo</div></div>
+      <div class="kpi blue"><div class="lbl">Bajo kilometraje</div><div class="val" id="k-km"></div><div class="sub">&lt; 10.000 km/año</div></div>
+      <div class="kpi blue"><div class="lbl">Nuevos hoy</div><div class="val" id="kpi-nuevos">—</div><div class="sub" id="kpi-nuevos-sub">detectados hoy</div></div>
+      <div class="kpi"><div class="lbl">Avisos analizados</div><div class="val" id="k-tot"></div><div class="sub">captura más reciente</div></div>
+    </div>
+    <div class="viewbtns">
+      <button class="vbtn active" data-f="oro">Oro <span id="vb-oro"></span></button>
+      <button class="vbtn" data-f="precio">Bajo precio <span id="vb-precio"></span></button>
+      <button class="vbtn" data-f="km">Bajo km <span id="vb-km"></span></button>
+    </div>
+    <div class="filters">
+      <input type="text" id="op-buscar" placeholder="Buscar marca o modelo…">
+      <select id="op-orden">
+        <option value="fresco" selected>Orden: más frescos primero</option>
+        <option value="mercado">Orden: más vendidos</option>
+        <option value="descuento">Mayor descuento</option>
+        <option value="precio">Menor precio</option>
+      </select>
+      <select id="op-frescura" onchange="renderOps()">
+        <option value="">Detectado: siempre</option>
+        <option value="0">Detectado: hoy</option>
+        <option value="1">Detectado: ≤ 1 día</option>
+        <option value="2">Detectado: ≤ 2 días</option>
+        <option value="7">Detectado: ≤ 7 días</option>
+      </select>
+      <span style="position:relative;display:inline-block">
+        <button id="op-anio-btn" onclick="opAnioPanel(event)" style="padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer">Año: todos ▾</button>
+        <div id="op-anio-panel" style="display:none;position:absolute;top:110%;left:0;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:238px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:11px">
+            <b>Marcá los años a analizar</b>
+            <a href="javascript:opAnioLimpiar()" style="color:var(--signal,#3b82f6)">limpiar</a>
+          </div>
+          <div id="op-anio-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-height:220px;overflow:auto"></div>
+        </div>
+      </span>
+      <input id="op-pmax" type="number" placeholder="Precio máx (M)" style="width:110px" oninput="renderOps()">
+      <select id="op-vendedor">
+        <option value="">Vendedor: todos</option>
+        <option value="Particular" selected>Solo particulares</option>
+        <option value="Automotora">Solo automotoras</option>
+      </select>
+      <select id="op-coment">
+        <option value="">Comentario: todos</option>
+        <option value="ok">Sin banderas rojas</option>
+        <option value="roja">Solo banderas rojas</option>
+        <option value="km_dudoso">Solo km dudoso</option>
+        <option value="venta_urgente">🔥 Venta urgente</option>
+        <option value="trato_directo">Vende su dueño</option>
+        <option value="precio_conversable">Precio conversable</option>
+        <option value="unico_dueno">Único dueño</option>
+        <option value="mantencion_al_dia">Mantención al día</option>
+        <option value="impecable">Impecable</option>
+        <option value="con">Con comentario</option>
+      </select>
+      <span style="color:var(--dim);font-size:12px;margin-left:auto" id="op-count"></span>
+    </div>
+    <div class="table-scroll">
+      <table id="op-table"><thead><tr>
+        <th data-k="veh" title="click para ordenar">Vehículo ⇅</th>
+        <th data-k="mercado" class="num" title="click para ordenar">Mercado ⇅</th>
+        <th data-k="año" class="num" title="click para ordenar">Año ⇅</th>
+        <th data-k="km" class="num" title="click para ordenar">Km ⇅</th>
+        <th data-k="precio" class="num" title="click para ordenar">Precio ⇅</th>
+        <th data-k="precio_justo" class="num" title="click para ordenar">Precio justo ⇅</th>
+        <th data-k="descuento" class="num" title="click para ordenar">Descuento ⇅</th>
+        <th data-k="entidad" title="click para ordenar">Vendedor ⇅</th>
+        <th>Estado (comentario)</th>
+        <th>Comparables</th>
+        <th>Aviso</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+</div></main>
+
+<div class="modal-bg" id="ficha-bg">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:560px">
+    <div class="modal-head">
+      <div>
+        <h3>Ficha técnica (Especificaciones oficiales)</h3>
+        <p id="ficha-titulo"></p>
+      </div>
+      <button class="modal-x" onclick="cerrarFicha()" aria-label="Cerrar">cerrar</button>
+    </div>
+    <div class="modal-body" style="max-height:60vh;overflow:auto">
+      <table class="tbl" style="font-size:13px"><tbody id="ficha-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="coment-bg">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:640px">
+    <div class="modal-head">
+      <div>
+        <h3>Comentario del vendedor</h3>
+        <p id="coment-titulo"></p>
+      </div>
+      <button class="modal-x" onclick="cerrarComentario()" aria-label="Cerrar">cerrar</button>
+    </div>
+    <div class="modal-body">
+      <p id="coment-texto" style="white-space:pre-wrap;line-height:1.6;font-size:14px;color:var(--ink)"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:96vw;width:96vw">
+    <div class="modal-head">
+      <div>
+        <h3 id="m-title">Comparables</h3>
+        <p id="m-sub"></p>
+      </div>
+      <button class="modal-x" id="m-close" aria-label="Cerrar">cerrar</button>
+    </div>
+    <div class="recalc" id="m-recalc"></div>
+    <div class="modal-body">
+      <div id="m-filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 4px;font-size:12px"></div>
+      <div style="font-size:11px;color:var(--muted);padding:0 4px 6px"><b>Valor justo equiv.</b> = el valor de MERCADO de un auto como el que evaluás, puesto en el año y km de cada fila (se calcula desde el <b>precio justo</b>, no desde el precio pedido). Más viejo o con más km, <b>baja</b>; más nuevo o con menos km, <b>sube</b>. La lectura: si el <b>precio pedido</b> de una fila supera su valor justo equivalente, esa fila está cara.</div>
+      <div class="table-scroll" style="border-radius:10px">
+        <table id="m-table">
+          <thead><tr>
+            <th>Incluir</th>
+            <th class="num msort" data-sort="año" style="cursor:pointer" title="Ordenar por año" onclick="ordenarComp(&quot;año&quot;)">Año ⇅</th>
+            <th class="num msort" data-sort="km" style="cursor:pointer" title="Ordenar por km" onclick="ordenarComp(&quot;km&quot;)">Km ⇅</th>
+            <th class="num msort" data-sort="kmanual" style="cursor:pointer" title="Ordenar por km/año" onclick="ordenarComp(&quot;kmanual&quot;)">Km/año ⇅</th>
+            <th class="num msort" data-sort="precio" style="cursor:pointer" title="Ordenar por precio" onclick="ordenarComp(&quot;precio&quot;)">Precio ⇅</th>
+            <th class="num msort" data-sort="ajustado" style="cursor:pointer" title="VALOR DE MERCADO de un auto como el que evaluás, puesto en el año y km de esta fila (parte del precio justo, no del precio pedido). Si el precio pedido de la fila supera esto, la fila está cara." onclick="ordenarComp(&quot;ajustado&quot;)">Valor justo equiv. ⇅</th>
+            <th>Versión (vendedor)</th>
+            <th title="Versión según la ficha técnica oficial de Chileautos, cuando existe.">Sugerida (ficha)</th>
+            <th class="num msort" data-sort="gen" style="cursor:pointer" title="Ordenar por generación" onclick="ordenarComp(&quot;gen&quot;)">Gen ⇅</th>
+            <th>Vendedor</th><th>Aviso</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="m-foot-info"></span>
+      <div style="display:flex;gap:8px">
+        <button class="vbtn" id="m-fix-ver" title="Si los comparables mezclan versiones distintas, corregilas en la herramienta Arreglar versiones">✏ Arreglar versiones de este modelo</button>
+        <button class="vbtn" id="m-reset">Restaurar todos</button>
+        <button class="vbtn primary" id="m-save">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer id="foot"></footer>
+
+<script>
+/*__DATA__*/
+</script>
+<script>
+const f0=n=>new Intl.NumberFormat('es-CL').format(Math.round(n));
+const fM=n=>'$'+new Intl.NumberFormat('es-CL').format(Math.round(n));
+
+// Header
+const caps=DATA.capturas;
+document.getElementById('cap').innerHTML=`captura analizada<br><b>${DATA.captura_analizada}</b> · ${f0(DATA.resumen.total)} avisos`;
+document.getElementById('foot').textContent='';
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.view).classList.add('active');
+}));
+
+// ===== ROTACION =====
+const R=DATA.rotacion;
+if(R && R.valida===false){
+  // Rotación no medible aún: mensaje honesto en vez de números falsos
+  const g=R.global||{};
+  const cont=document.getElementById('rotacion');
+  const nota=document.getElementById('rot-note');
+  if(nota) nota.innerHTML=`<b>⏳ Rotación todavía no disponible.</b><br>${R.motivo||''}`
+    +`<br><br><span style="color:var(--muted);font-size:12px">Capturas comparadas: ${g.fecha_desde||'—'} y ${g.fecha_hasta||'—'} · solapamiento ${g.solapamiento_pct!=null?g.solapamiento_pct+'%':'—'}. `
+    +`Para medir rotación real necesito 2+ días seguidos de la misma base — bajá la base cada día y en ~1 semana esta pestaña se activa sola con datos creíbles.</span>`;
+  // ocultar la tabla y filtros que no tienen sentido sin datos
+  ['rotbar','rot-table'].forEach(id=>{const e=document.getElementById(id); if(e) e.style.display='none';});
+  const filtros=document.querySelector('#rotacion .filters'); if(filtros) filtros.style.display='none';
+  const tabs=document.querySelector('#rotacion .seg'); if(tabs) tabs.style.display='none';
+}else if(R && R.valida!==false){
+  const g=R.global;
+  document.getElementById('rotbar').innerHTML=`
+    <div class="rb"><div class="l">Período</div><div class="v" style="font-size:18px">${g.fecha_desde} → ${g.fecha_hasta}</div><div class="d">${g.dias} días</div></div>
+    <div class="rb"><div class="l">Salieron del mercado</div><div class="v" style="color:var(--accent)">${f0(g.desaparecidos)}</div><div class="d">${g.tasa_salida_periodo}% · ${g.tasa_salida_diaria}%/día</div></div>
+    <div class="rb"><div class="l">Avisos nuevos</div><div class="v" style="color:var(--signal)">${f0(g.nuevos)}</div><div class="d">aparecieron en el período</div></div>
+    <div class="rb"><div class="l">Bajaron de precio</div><div class="v" style="color:var(--good)">${f0(g.bajaron_precio)}</div><div class="d">de ${f0(g.con_cambio_precio)} que cambiaron</div></div>`;
+  document.getElementById('rot-note').innerHTML=`<b>Cómo leerlo:</b> "salió del mercado" significa que el aviso estaba el ${g.fecha_desde} y ya no el ${g.fecha_hasta}. Es el mejor indicio de venta que tenemos, pero un aviso también puede irse por expirar o republicarse. Tomalo como demanda relativa entre modelos, no como ventas exactas. Con más capturas se afina.`;
+
+  const alto=R.por_modelo.filter(m=>m.inventario==='alto');
+  const bajo=R.por_modelo.filter(m=>m.inventario==='bajo');
+  document.getElementById('c-alto').textContent='('+alto.length+')';
+  document.getElementById('c-bajo').textContent='('+bajo.length+')';
+  document.getElementById('c-todos').textContent='('+R.por_modelo.length+')';
+
+  const HINTS={
+    alto:'Modelos con 10 o más autos en stock. La rotación es confiable porque hay volumen suficiente.',
+    bajo:'Modelos con menos de 10 autos. La rotación es solo una señal débil: con pocos autos, un par de ventas distorsiona el porcentaje.',
+    todos:'Todos los modelos sin filtrar. Ojo: los de bajo inventario tienen porcentajes poco confiables.'
+  };
+  let invView='alto', rotSort='rapido';
+  const maxStock=Math.max(...R.por_modelo.map(m=>m.stock),1);
+  document.querySelectorAll('[data-inv]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-inv]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); invView=b.dataset.inv; document.getElementById('inv-hint').textContent=HINTS[invView]; renderRot();
+  }));
+  document.getElementById('inv-hint').textContent=HINTS.alto;
+  document.getElementById('rot-orden').addEventListener('change',e=>{rotSort=e.target.value;renderRot();});
+  document.getElementById('rot-buscar').addEventListener('input',renderRot);
+
+  function renderRot(){
+    const q=document.getElementById('rot-buscar').value.toLowerCase().trim();
+    let rows=R.por_modelo.filter(m=>{
+      if(invView==='alto'&&m.inventario!=='alto')return false;
+      if(invView==='bajo'&&m.inventario!=='bajo')return false;
+      if(q && !((m.marca+' '+m.modelo).toLowerCase().includes(q)))return false;
+      return true;
+    });
+    rows.sort((a,b)=>{
+      if(rotSort==='stock')return b.stock-a.stock;
+      if(rotSort==='lento')return a.tasa_salida-b.tasa_salida;
+      return b.tasa_salida-a.tasa_salida;
+    });
+    document.getElementById('rot-count').textContent=rows.length+' modelos';
+    document.querySelector('#rot-table tbody').innerHTML=rows.map(m=>{
+      const dv=m.dias_venta_est?`~${m.dias_venta_est} días`:'<span style="color:var(--dim)">s/d</span>';
+      const w=Math.round(60*m.tasa_salida/100)+4;
+      const col=m.tasa_salida>=45?'var(--good)':m.tasa_salida>=25?'var(--signal)':'var(--dim)';
+      const warn=m.inventario==='bajo'?' <span class="badge b-warn" title="pocos autos, dato poco confiable">bajo inv.</span>':'';
+      return `<tr style="cursor:pointer" title="click: analizar este modelo en el BI" onclick="rotAlBI('${(m.marca||'').replace(/'/g,'')}','${(m.modelo||'').replace(/'/g,'')}')">
+        <td class="veh">${m.marca} ${m.modelo}${warn}</td>
+        <td class="num">${m.stock.toLocaleString('es-CL')}</td>
+        <td class="num">${m.salieron}</td>
+        <td class="num"><b>${m.tasa_salida}%</b></td>
+        <td class="num">${dv}</td>
+        <td><span class="speed"><span class="bar" style="width:${w}px;background:${col}"></span></span></td>
+      </tr>`;
+    }).join('');
+  }
+  document.querySelectorAll('#rot-table thead th[data-k]').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(k==='tasa_salida')rotSort=(rotSort==='rapido')?'lento':'rapido';
+    else if(k==='stock')rotSort='stock';
+    document.getElementById('rot-orden').value=(rotSort==='stock')?'stock':(rotSort==='lento'?'lento':'rapido');
+    renderRot();
+  }));
+  renderRot();
+}
+
+// ===== RADAR =====
+const ops=DATA.oportunidades||[];
+const res=DATA.resumen;
+document.getElementById('k-oro').textContent=f0(res.op_oro);
+document.getElementById('k-precio').textContent=f0(res.op_precio);
+document.getElementById('k-km').textContent=f0(res.op_km);
+document.getElementById('k-tot').textContent=f0(res.total);
+document.getElementById('vb-oro').textContent='('+res.op_oro+')';
+document.getElementById('vb-precio').textContent='('+res.op_precio+')';
+document.getElementById('vb-km').textContent='('+res.op_km+')';
+const maxMkt=Math.max(...ops.map(o=>o.mercado||0),1);
+let opView='oro', opSort='mercado';
+document.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-f]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); opView=b.dataset.f; renderOps();
+}));
+document.getElementById('op-orden').addEventListener('change',e=>{opSort=e.target.value;renderOps();});
+document.getElementById('op-buscar').addEventListener('input',renderOps);
+document.getElementById('op-vendedor').addEventListener('change',renderOps);
+document.getElementById('op-coment').addEventListener('change',renderOps);
+
+const ETQ_LABEL={
+  daniado:['dañado','rojo'], problema_legal:['problema legal','rojo'], km_dudoso:['km dudoso','rojo'],
+  origen_especial:['internado','gris'], impecable:['impecable','verde'],
+  unico_dueno:['único dueño','verde'], pocos_duenos:['pocos dueños','verde'],
+  mantencion_al_dia:['mantención al día','verde'], listo_transferir:['transferible','verde'],
+  poco_uso:['poco uso','verde'], facilidades:['financia/permuta','gris'], plantilla:['aviso genérico','gris'],
+  venta_urgente:['🔥 venta urgente','gold'], precio_conversable:['precio conversable','verde'],
+  precio_condicionado:['precio solo c/crédito','rojo'], precio_mas_iva:['+ IVA','rojo'],
+  modificado:['modificado (DPF/gas)','gris'], trato_directo:['vende su dueño','verde']
+};
+function chips(etqs, idConComentario){
+  if(!etqs||!etqs.length) return '<span style="color:var(--dim);font-size:12px">—</span>';
+  const clickable = idConComentario ? `onclick="verComentario('${idConComentario}')" style="margin:1px;cursor:pointer" title="Ver comentario completo"` : 'style="margin:1px"';
+  return etqs.map(e=>{
+    const def=ETQ_LABEL[e]||[e,'gris'];
+    const cls=def[1]==='rojo'?'b-warn':def[1]==='verde'?'b-good':def[1]==='gold'?'b-gold':'b-auto';
+    return `<span class="badge ${cls}" ${clickable}>${def[0]}</span>`;
+  }).join(' ');
+}
+function verComentario(id){
+  const o=(ops||[]).find(x=>x.id===id);
+  if(!o||!o.comentario) return;
+  document.getElementById('coment-titulo').textContent=`${o.marca} ${o.modelo} ${o.año||''}`.trim();
+  const res=(o.resumen_ia?`⚡ ${o.resumen_ia}${o.urgencia>=6?` · urgencia ${o.urgencia}/10`:''}\n\n`:'');
+  document.getElementById('coment-texto').textContent=res+o.comentario;
+  document.getElementById('coment-bg').classList.add('open');
+}
+function verFicha(id){
+  const o=(ops||[]).find(x=>x.id===id);
+  if(!o||!o.ficha) return;
+  document.getElementById('ficha-titulo').textContent=`${o.marca} ${o.modelo} ${o.año||''} — ${Object.keys(o.ficha).length} campos`.trim();
+  document.getElementById('ficha-body').innerHTML=Object.entries(o.ficha)
+    .map(([k,v])=>`<tr><td style="color:var(--muted);white-space:nowrap">${k}</td><td>${v}</td></tr>`).join('');
+  document.getElementById('ficha-bg').classList.add('open');
+}
+function cerrarFicha(){
+  document.getElementById('ficha-bg').classList.remove('open');
+}
+function cerrarComentario(){
+  document.getElementById('coment-bg').classList.remove('open');
+}
+window.rotAlBI=function(marca,modelo){
+  // saltar al análisis BI con este marca/modelo ya filtrado
+  const tab=document.querySelector('.tab[data-view="bi"]'); if(tab) tab.click();
+  setTimeout(()=>{
+    biInitSafe();
+    const sMa=document.getElementById('bi-marca');
+    const op=[...sMa.options].find(o=>o.value.toLowerCase()===marca.toLowerCase());
+    if(op){sMa.value=op.value; biMarca();
+      const sMo=document.getElementById('bi-modelo');
+      const om=[...sMo.options].find(o=>o.value.toLowerCase()===modelo.toLowerCase());
+      if(om){sMo.value=om.value; biGens();}
+      biRender();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+  },120);
+};
+window.biInitSafe=function(){ try{ if(typeof biInit==='function') biInit(); }catch(e){} };
+window._opAnios=new Set();
+window.opAnioPanel=function(ev){
+  ev.stopPropagation();
+  const p=document.getElementById('op-anio-panel');
+  if(p.style.display==='none'){
+    const g=document.getElementById('op-anio-grid');
+    if(!g.children.length){
+      const hoy=new Date().getFullYear();
+      let h='';
+      for(let y=hoy;y>=1990;y--) h+=`<button data-y="${y}" onclick="opAnioToggle(event,${y})" style="padding:4px 2px;border:1px solid var(--line);border-radius:6px;background:var(--panel);cursor:pointer;font-size:11px">${y}</button>`;
+      g.innerHTML=h;
+    }
+    p.style.display='block';
+  } else p.style.display='none';
+};
+window.opAnioToggle=function(ev,y){
+  ev.stopPropagation();
+  if(window._opAnios.has(y)) window._opAnios.delete(y); else window._opAnios.add(y);
+  const b=ev.target;
+  b.style.background=window._opAnios.has(y)?'var(--signal,#3b82f6)':'var(--panel)';
+  b.style.color=window._opAnios.has(y)?'#fff':'inherit';
+  opAnioRotulo(); renderOps();
+};
+window.opAnioLimpiar=function(){
+  window._opAnios.clear();
+  document.querySelectorAll('#op-anio-grid button').forEach(b=>{b.style.background='var(--panel)';b.style.color='inherit';});
+  opAnioRotulo(); renderOps();
+};
+function opAnioRotulo(){
+  const a=[...window._opAnios].sort();
+  document.getElementById('op-anio-btn').textContent=
+    a.length===0?'Año: todos ▾':a.length<=3?('Año: '+a.join(', ')+' ▾'):('Año: '+a.length+' marcados ▾');
+}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('op-anio-panel');
+  if(p && p.style.display!=='none' && !p.contains(e.target)) p.style.display='none';
+});
+(function(){
+  try{
+    let nuevos=0; const idsNuevos=new Set();
+    for(const k in DEPU) for(const r of DEPU[k]) if(r[15]===0){nuevos++; idsNuevos.add(r[0]);}
+    const opsNuevas=(DATA.oportunidades||[]).filter(o=>idsNuevos.has(o.id)&&(o.f_oro||o.f_precio)).length;
+    const el=document.getElementById('kpi-nuevos');
+    if(el){el.textContent=nuevos.toLocaleString('es-CL');
+      document.getElementById('kpi-nuevos-sub').textContent=opsNuevas+' son oportunidades';}
+  }catch(e){}
+})();
+function renderOps(){
+  const q=document.getElementById('op-buscar').value.toLowerCase().trim();
+  const fc=document.getElementById('op-coment').value;
+  const flag=opView==='oro'?'f_oro':opView==='precio'?'f_precio':'f_km';
+  const fv=document.getElementById('op-vendedor').value;
+  let rows=ops.filter(o=>{
+    if(!o[flag]) return false;
+    if(fv && o.entidad!==fv) return false;
+    if(window._opAnios.size && !window._opAnios.has(o.año)) return false;
+    const _pm=(+document.getElementById('op-pmax').value||0)*1e6;
+    const _fr=document.getElementById('op-frescura').value;
+    if(_fr!=='' && (o.dias_publicado==null || o.dias_publicado>+_fr)) return false;
+    if(_pm && o.precio>_pm) return false;
+    if(q && !((o.marca+' '+o.modelo).toLowerCase().includes(q))) return false;
+    if(fc==='roja' && !o.bandera_roja) return false;
+    if(fc==='ok' && o.bandera_roja) return false;
+    if(fc==='con' && !o.tiene_comentario) return false;
+    if(['unico_dueno','mantencion_al_dia','impecable','km_dudoso','venta_urgente','precio_conversable','trato_directo'].includes(fc) && !(o.etiquetas||[]).includes(fc)) return false;
+    return true;
+  });
+  const colMap={veh:o=>o.marca+o.modelo, mercado:o=>o.mercado||0, año:o=>o.año, km:o=>o.km,
+                precio:o=>o.precio, precio_justo:o=>o.precio_justo??0, descuento:o=>o.descuento??-99,
+                entidad:o=>o.entidad};
+  if(window._opColSort && window._opColSort.key){
+    const g=colMap[window._opColSort.key], dir=window._opColSort.dir;
+    rows.sort((a,b)=>{const va=g(a),vb=g(b); return va<vb?-1*dir:va>vb?1*dir:0;});
+  } else {
+    rows.sort((a,b)=>{
+      if(opSort==='precio')return a.precio-b.precio;
+      if(opSort==='descuento')return (b.descuento??-99)-(a.descuento??-99);
+      if(opSort==='fresco'){
+        const da=a.dias_publicado??999, db=b.dias_publicado??999;
+        if(da!==db) return da-db;
+        return (a.descuento??0)-(b.descuento??0);
+      }
+      return (b.mercado||0)-(a.mercado||0);
+    });
+  }
+  document.getElementById('op-count').textContent=rows.length+' avisos (muestra)';
+  document.querySelector('#op-table tbody').innerHTML=rows.map(o=>{
+    const ent=(o.entidad==='Particular'?'<span class="badge b-part">Particular</span>':'<span class="badge b-auto">Automotora</span>')+(o.region?`<br><small style="color:var(--muted)">${o.region}${o.comuna?' · '+o.comuna:''}</small>`:'');
+    const aviso=o.url?`<a class="link-btn" target="_blank" rel="noopener" href="${o.url}">Ver ↗</a>`:'—';
+    const alerta=o.bandera_roja?'(!) ':'';
+    const fresco=(o.dias_publicado!=null&&o.dias_publicado<=3)?'<span style="background:var(--good,#16a34a);color:#fff;border-radius:5px;padding:1px 6px;font-size:10px;margin-right:5px;vertical-align:middle">'+(o.dias_publicado===0?'HOY':o.dias_publicado+'d')+'</span>':'';
+    const traza=`Original vendedor: ${o.version_original||o.version||'—'}&#10;Tasada como: ${o.version_oficial?('OFICIAL: '+o.version_oficial):(o.tasada_como||'modelo completo')}${o.generacion?(' · gen '+o.generacion):''} · método: ${o.metodo||'—'}`.replace(/"/g,'&quot;');
+    const veh=o.url?`${fresco}<a href="${o.url}" target="_blank" rel="noopener" style="color:var(--ink);text-decoration:none">${alerta}${o.marca} ${o.modelo}</a><small title="${traza}" style="cursor:help">${o.version||''} · ${o.comparables} comp.</small>`:`${alerta}${o.marca} ${o.modelo}<small title="${traza}" style="cursor:help">${o.version||''}</small>`;
+    const descExtra = o.desc_extremo ? ` <span title="Descuento muy alto (>55%): puede ser una ganga real o un error de datos. Revisá el aviso y los comparables antes de decidir." style="cursor:help">🔍</span>` : '';
+    const desc=o.descuento==null?'—':(o.descuento>=0?`<span class="badge b-gold">−${o.descuento}%</span>${descExtra}`:`<span class="badge b-warn">+${Math.abs(o.descuento)}%</span>`);
+    const w=Math.round(40*(o.mercado||0)/maxMkt)+3;
+    const filaBg=o.bandera_roja?' style="background:rgba(224,54,79,.05)"':'';
+    return `<tr${filaBg}>
+      <td class="veh">${veh}</td>
+      <td class="num"><span class="speed"><span class="v">${f0(o.mercado||0)}</span><span class="bar" style="width:${w}px;background:var(--signal)"></span></span></td>
+      <td class="num">${o.año}${o.gens_pos?` <span title="Año de transición (${o.gens_pos}): la generación es ambigua — abrí el aviso, mirá las fotos y confirmala en el modal de comparables">±</span>`:''}${o.dias_publicado!=null?`<br><small style="color:${o.dias_publicado>=30?'var(--good,#3a9d5d)':'var(--muted)'}" title="Publicado el ${o.primera_vez} · ${o.dias_publicado>=30?'lleva tiempo en venta, probablemente más negociable':'aviso reciente'}">${o.primera_vez?o.primera_vez.slice(8,10)+'-'+o.primera_vez.slice(5,7)+' · ':''}${o.dias_publicado===0?'hoy':'hace '+o.dias_publicado+'d'}</small>`:''}</td>
+      <td class="num">${f0(o.km)}</td>
+      <td class="num">${fM(o.precio)}</td>
+      <td class="num" style="color:var(--muted)">${o.precio_justo?fM(o.precio_justo):'—'}${o.tasacion_pobre?` <span title="Tasación poco confiable: quedan menos de 5 comparables reales tras filtrar por versión/motor/tracción. El precio justo es orientativo — revisá los comparables antes de confiar en el descuento." style="cursor:help;color:var(--warn,#c0392b)">(!)</span>`:''}</td>
+      <td class="num">${desc}</td>
+      <td>${ent}</td>
+      <td style="white-space:normal;max-width:220px">${chips(o.etiquetas, o.comentario?o.id:null)}${o.tiene_comentario?` <button class="comp-btn" title="Ver comentario del vendedor" onclick="verComentario('${o.id}')">&#128172;</button>`:''}${o.ficha?` <button class="comp-btn" title="Ver ficha técnica oficial" onclick="verFicha('${o.id}')">&#128203;</button>`:''}</td>
+      <td>${DATA.comps && DATA.comps[o.id] ? `<button class="comp-btn" onclick="openComps('${o.id}')">${o.comparables} comp. ↗</button>` : '—'}</td>
+      <td>${aviso}</td>
+    </tr>`;
+  }).join('');
+}
+document.querySelectorAll('#op-table thead th[data-k]').forEach(th=>{
+  th.style.cursor='pointer';
+  const base=th.textContent; th.dataset.base=base;
+  th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(window._opColSort && window._opColSort.key===k) window._opColSort.dir*=-1;
+    else window._opColSort={key:k,dir:1};
+    document.querySelectorAll('#op-table thead th[data-k]').forEach(x=>{x.textContent=x.dataset.base+' ⇅';});
+    th.textContent=base+(window._opColSort.dir>0?' ▲':' ▼');
+    renderOps();
+  });
+});
+document.getElementById('op-orden').addEventListener('change',()=>{
+  window._opColSort=null;
+  document.querySelectorAll('#op-table thead th[data-k]').forEach(x=>{x.textContent=x.dataset.base+' ⇅';});
+});
+renderOps();
+
+// ================= MODAL COMPARABLES + recálculo =================
+// rows: [año, km_miles, precio, version, ent(P/A), self]
+const opById = Object.fromEntries(ops.map(o=>[o.id,o]));
+let modalState=null;
+
+function percentile(arr, p){
+  if(!arr.length) return NaN;
+  const a=[...arr].sort((x,y)=>x-y);
+  const i=(a.length-1)*p/100, lo=Math.floor(i), hi=Math.ceil(i);
+  return lo===hi ? a[lo] : a[lo]+(a[hi]-a[lo])*(i-lo);
+}
+// Réplica de la lógica Python de precio justo
+// Mismas tasas que el motor: normaliza cada comparable al año+km del target
+// y saca la mediana. Así el modal coincide con el precio justo del radar.
+const ADJ_DEP_ANIO=0.065, ADJ_DEP_KM1000=0.0017, ADJ_PREF_KM=1.6;
+function fairFrom(rowsIncluded, kmObjetivoMiles, añoObjetivo){
+  const km=kmObjetivoMiles*1000;
+  const n=rowsIncluded.length;
+  if(n<5) return {val:null, method:'insuficiente', n};
+  // ajustar cada comparable al (año, km) del target
+  const adj=rowsIncluded.map(r=>{
+    const cAño=r[0], cKm=r[1]*1000, cPrecio=r[2];
+    const fAño=Math.pow(1-ADJ_DEP_ANIO, -((añoObjetivo||cAño)-cAño));
+    const fKm=Math.pow(1-ADJ_DEP_KM1000*ADJ_PREF_KM, (km-cKm)/1000);
+    let v=cPrecio*fAño*fKm;
+    return Math.min(Math.max(v, cPrecio*0.35), cPrecio*2.5);
+  });
+  // recorte de extremos y mediana
+  const lo=percentile(adj,5), hi=percentile(adj,95);
+  const sel=adj.filter(v=>v>=lo&&v<=hi);
+  const med=percentile(sel.length?sel:adj,50);
+  return {val:med, method:'ajuste', n};
+}
+
+function renderRecalc(){
+  const {op, rows, excluded}=modalState;
+  const inc=rows.filter((_,i)=>!excluded.has(i));
+  const fair=fairFrom(inc, Math.round(op.km/1000), op.año);
+  const origPj=op.precio_justo, origDesc=op.descuento;
+  let newPj=fair.val, newDesc = newPj!=null ? +(((newPj-op.precio)/newPj)*100).toFixed(1) : null;
+  const dInfo = m => (m&&m.startsWith('ajuste'))?'ajustado por año y km':m==='km_adj'?'ajustado por km':m==='mediana'?'mediana del grupo':(m&&m.startsWith('mediana'))?'mediana del grupo':m==='insuficiente'?'sin datos suficientes':'ajustado por año y km';
+  const arrow = (newDesc!=null && origDesc!=null)
+    ? (newDesc>origDesc?'<span style="color:var(--good)">▲</span>':newDesc<origDesc?'<span style="color:var(--bad)">▼</span>':'=')
+    : '';
+  document.getElementById('m-recalc').innerHTML=`
+    <div class="rc"><div class="l">Precio publicado</div><div class="v">${fM(op.precio)}</div><div class="d">${op.año} · ${f0(op.km)} km</div></div>
+    <div class="rc"><div class="l">Precio justo original</div><div class="v" style="color:var(--muted)">${origPj?fM(origPj):'—'}</div><div class="d">${dInfo(op.metodo)} · ${op.comparables} comp.</div></div>
+    <div class="rc hl"><div class="l">Precio justo recalculado</div><div class="v">${newPj?fM(newPj):'—'}</div><div class="d">${dInfo(fair.method)} · ${inc.length} comp.</div></div>
+    <div class="rc"><div class="l">Descuento</div><div class="v">${newDesc!=null?(newDesc>=0?'−'+newDesc:'+'+Math.abs(newDesc))+'%':'—'} ${arrow}</div><div class="d">original ${origDesc!=null?(origDesc>=0?'−'+origDesc:'+'+Math.abs(origDesc))+'%':'—'}</div></div>`;
+  document.getElementById('m-foot-info').textContent =
+    `${excluded.size} excluido${excluded.size!==1?'s':''} de ${rows.length} comparables`;
+}
+
+function calcAjustado(r, op){
+  // VALOR DE MERCADO de un auto como el evaluado, en la condición de esta
+  // fila: parte del precio JUSTO (no del pedido, que puede ser la ganga).
+  const base=op.precio_justo; if(!base) return null;
+  const [año,kmM]=r;
+  const DEP=0.065, DKM=0.0017, PREF=1.6;
+  const fa=Math.pow(1-DEP, (op.año-año));
+  const fk=Math.pow(1-DKM*PREF, -((op.km-kmM*1000)/1000));
+  return Math.min(Math.max(base*fa*fk, base*0.35), base*2.5);
+}
+const GEN_ORD={'I':1,'II':2,'III':3,'IV':4,'V':5};
+function renderCompTable(){
+  const {rows, excluded, op}=modalState;
+  const tb=document.querySelector('#m-table tbody');
+  // índices que pasan el filtro de año y generación
+  let idxs = rows.map((_,i)=>i).filter(i=>{
+    const r=rows[i];
+    if(r[5]) return true;  // el propio auto siempre se muestra
+    if(modalState.filtroAños.size && !modalState.filtroAños.has(r[0])) return false;
+    if(modalState.filtroGens.size && !modalState.filtroGens.has(r[7]||'—')) return false;
+    return true;
+  });
+  // ordenar
+  const k=modalState.sortKey, dir=modalState.sortDir;
+  idxs.sort((a,b)=>{
+    const ra=rows[a], rb=rows[b];
+    if((ra[5]?1:0)!==(rb[5]?1:0)) return (rb[5]?1:0)-(ra[5]?1:0);  // el auto evaluado, fijo arriba
+    let va,vb;
+    if(k==='año'){va=ra[0];vb=rb[0];}
+    else if(k==='km'){va=ra[1];vb=rb[1];}
+    else if(k==='kmanual'){va=(2026-ra[0])>0?ra[1]*1000/(2026-ra[0]):ra[1]*1000; vb=(2026-rb[0])>0?rb[1]*1000/(2026-rb[0]):rb[1]*1000;}
+    else if(k==='precio'){va=ra[2];vb=rb[2];}
+    else if(k==='ajustado'){va=calcAjustado(ra,op)??-1;vb=calcAjustado(rb,op)??-1;}
+    else if(k==='gen'){va=GEN_ORD[ra[7]]||99;vb=GEN_ORD[rb[7]]||99;}
+    else {va=ra[2];vb=rb[2];}
+    return (va-vb)*dir;
+  });
+  tb.innerHTML = idxs.map((i)=>{
+    const r=rows[i];
+    const [año,kmM,precio,ver,ent,self,cid,gen,gpos,kmDudoso,verOficial,curl]=r;
+    const kmAnual = (2026-año)>0 ? Math.round(kmM*1000/(2026-año)) : kmM*1000;
+    // Precio ajustado: lleva este comparable al año y km del auto evaluado,
+    // para compararlos en igualdad. Tasas DERIVADAS de la base chilena
+    // (234 modelos): ~6.5%/año y ~0.17% por cada 1000 km. Ambas multiplicativas.
+    // PREF_KM > 1 castiga más el km (preferencia por auto viejo con poco km).
+    const DEP_AÑO = 0.065;          // 6.5%/año (mercado real, no el 10% teórico)
+    const DEP_KM_1000 = 0.0017;     // 0.17% por cada 1000 km
+    const PREF_KM = 1.6;            // peso extra al km según tu criterio
+    const añoDif = (op.año - año);              // + si el evaluado es más nuevo
+    const kmDif = (op.km - kmM*1000);           // + si el evaluado tiene más km
+    // VALOR DE MERCADO de un auto como el evaluado, en la condición de esta
+    // fila. Base: el precio JUSTO del evaluado (no su precio pedido, que
+    // puede ser justamente la ganga y contaminaría toda la columna).
+    const baseJ = op.precio_justo || 0;
+    const factorAño = Math.pow(1 - DEP_AÑO, añoDif);
+    const factorKm = Math.pow(1 - DEP_KM_1000*PREF_KM, -kmDif/1000);
+    let ajust = baseJ * factorAño * factorKm;
+    if(baseJ) ajust = Math.min(Math.max(ajust, baseJ*0.35), baseJ*2.5);
+    const cls=[self?'self':'', excluded.has(i)?'excluded':''].filter(Boolean).join(' ');
+    let genCell = gen || '—';
+    if(gpos){
+      const btns = gpos.split('/').map(g=>
+        `<button class="comp-btn" style="font-size:10px;padding:1px 5px" title="Confirmar por fotos: es la generación ${g}"
+          onclick="fijarGen('${cid}','${g}',this)">${g}</button>`).join(' ');
+      genCell = `<span title="Año de transición (${gpos}): abrí el aviso, mirá las fotos y confirmá la generación, o descartalo si es otra cosa">±</span> ${btns}
+        <button class="comp-btn" style="font-size:10px;padding:1px 5px" title="Descartar este aviso del análisis (es otra versión/modelo)"
+          onclick="descartarAviso('${cid}',${i},this)">cerrar</button>`;
+    }
+    return `<tr class="${cls}">
+      <td><input type="checkbox" ${excluded.has(i)?'':'checked'} onchange="toggleComp(${i})" ${self?'disabled title="El auto evaluado siempre se incluye"':''}></td>
+      <td class="num">${año}</td>
+      <td class="num">${f0(kmM*1000)}${kmDudoso===1?` <span title="Km sospechoso (auto con años pero casi sin km). Destildado por defecto para no ensuciar el cálculo — tildalo si creés que el km es real." style="cursor:help;color:var(--warn,#c0392b)">(!)</span>`:''}</td>
+      <td class="num" style="color:var(--muted)">${f0(kmAnual)}</td>
+      <td class="num">${fM(precio)}</td>
+      <td class="num" style="color:${(Math.abs(añoDif)>=3||Math.abs(kmDif)>=80000)&&!self?'var(--muted)':'var(--signal,#3b82f6)'}" title="${(Math.abs(añoDif)>=3||Math.abs(kmDif)>=80000)&&!self?'Extrapolación lejana ('+Math.abs(añoDif)+' años, '+f0(Math.abs(Math.round(kmDif)))+' km de diferencia): tomalo con pinzas':'Tu auto ('+op.año+', '+f0(op.km)+' km) si tuviera el año y km de esta fila. Compará contra el precio pedido de la fila.'}">${self?(op.precio_justo?fM(op.precio_justo):'—'):(!op.precio_justo?'—':((Math.abs(añoDif)>=3||Math.abs(kmDif)>=80000)?'≈ ':'')+fM(Math.round(ajust)))}</td>
+      <td style="color:var(--muted);font-size:12px" title="${ver||''}">${(ver||'—')}
+        <button class="comp-btn" style="font-size:10px;padding:0 4px;opacity:.6" title="Corregir la versión de este aviso (vista en fotos/aviso)"
+          onclick="corregirVersion('${cid}','${(ver||'').replace(/'/g,'')}',this)">editar</button></td>
+      <td style="color:var(--signal,#3b82f6);font-size:12px" title="${verOficial||'sin ficha'}">${verOficial?verOficial.toLowerCase():'—'}</td>
+      <td style="white-space:nowrap;font-size:12px">${genCell}</td>
+      <td>${ent==='P'?'<span class="badge b-part">Particular</span>':'<span class="badge b-auto">Automotora</span>'}</td>
+      <td>${curl?`<a class="link-btn" target="_blank" rel="noopener" href="${curl}">ver</a>`:'—'}</td>
+    </tr>`;
+  }).join('');
+  // contador: cuántos comparables están INCLUIDOS (tildados) en el cálculo
+  const total=rows.filter(r=>!r[5]).length;         // sin contar el propio auto
+  const incluidos=rows.filter((r,i)=>!r[5] && !excluded.has(i)).length;
+  const vis=idxs.filter(i=>!rows[i][5]).length;      // visibles tras filtro
+  const fi=document.getElementById('m-foot-info');
+  if(fi) fi.innerHTML=`<b>${incluidos}</b> de ${total} incluidos en el cálculo`
+    +(vis!==total?` · mostrando ${vis} (filtrados)`:'');
+}
+
+function renderFiltrosComp(){
+  const {rows}=modalState;
+  const años=[...new Set(rows.filter(r=>!r[5]).map(r=>r[0]))].sort((a,b)=>b-a);
+  const gens=[...new Set(rows.filter(r=>!r[5]).map(r=>r[7]||'—'))];
+  const cont=document.getElementById('m-filtros'); if(!cont) return;
+  const chipAño=a=>`<button onclick="toggleFiltroAño(${a})" style="padding:3px 9px;border-radius:12px;cursor:pointer;font-size:11px;border:1px solid var(--line);background:${modalState.filtroAños.has(a)?'var(--accent,#2d7)':'var(--panel)'};color:${modalState.filtroAños.has(a)?'#fff':'inherit'}">${a}</button>`;
+  const chipGen=g=>`<button onclick="toggleFiltroGen('${g}')" style="padding:3px 9px;border-radius:12px;cursor:pointer;font-size:11px;border:1px solid var(--line);background:${modalState.filtroGens.has(g)?'var(--signal,#3b82f6)':'var(--panel)'};color:${modalState.filtroGens.has(g)?'#fff':'inherit'}">Gen ${g}</button>`;
+  let html='<span style="color:var(--muted)">Año:</span> '+años.map(chipAño).join(' ');
+  if(gens.length>1 && !(gens.length===1&&gens[0]==='—'))
+    html+=' &nbsp;<span style="color:var(--muted)">Gen:</span> '+gens.filter(g=>g!=='—').map(chipGen).join(' ');
+  if(modalState.filtroAños.size||modalState.filtroGens.size)
+    html+=` &nbsp;<button onclick="limpiarFiltrosComp()" style="padding:3px 9px;border-radius:12px;cursor:pointer;font-size:11px;border:1px solid var(--line);background:transparent;color:var(--warn,#c0392b)">✕ limpiar</button>`;
+  cont.innerHTML=html;
+}
+window.toggleFiltroAño=function(a){
+  if(modalState.filtroAños.has(a)) modalState.filtroAños.delete(a); else modalState.filtroAños.add(a);
+  renderFiltrosComp();
+  document.querySelectorAll('#m-table .msort').forEach(th=>{
+    th.onclick=()=>ordenarComp(th.dataset.sort);
+  }); renderCompTable(); renderRecalc();
+};
+window.toggleFiltroGen=function(g){
+  if(modalState.filtroGens.has(g)) modalState.filtroGens.delete(g); else modalState.filtroGens.add(g);
+  renderFiltrosComp(); renderCompTable(); renderRecalc();
+};
+window.limpiarFiltrosComp=function(){
+  modalState.filtroAños.clear(); modalState.filtroGens.clear();
+  renderFiltrosComp(); renderCompTable(); renderRecalc();
+};
+window.ordenarComp=function(k){
+  if(modalState.sortKey===k) modalState.sortDir*=-1;
+  else { modalState.sortKey=k; modalState.sortDir=(k==='año'||k==='gen')?1:-1; }
+  renderCompTable();
+};
+
+function guardarAviso(cid, cambio, btn, exito){
+  fetch(`${CTL_URL}/depurar_aviso`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({[cid]:cambio})})
+    .then(r=>{if(!r.ok)throw 0; btn.textContent='OK'; btn.disabled=true; if(exito)exito();})
+    .catch(()=>{btn.textContent='(!)'; btn.title='No pude guardar: ¿el panel está abierto? (PANEL.bat)';});
+}
+window.corregirVersion=function(cid, actual, btn){
+  // Versiones principales del modelo actual (del depurador) como sugerencias
+  const op = modalState ? modalState.op : null;
+  let sugeridas = [];
+  const keyDep = (!op && dbKey) ? dbKey : null;
+  if(op || keyDep){
+    const key = keyDep || (op.marca+'|'+op.modelo).toLowerCase();
+    const dm = (DATA.depurador_modelos||{})[key];
+    if(dm && dm.versiones){
+      sugeridas = dm.versiones
+        .filter(v=>v.identificada && v.n>=2)
+        .slice(0,14)
+        .map(v=>({txt:v.etiqueta, n:v.n}));
+    }
+  }
+  abrirSelectorVersion(cid, actual, sugeridas, btn);
+};
+
+function guardarAvisoLote(ids, cambio, btn){
+  const body={}; ids.forEach(id=>body[id]=cambio);
+  fetch(`${CTL_URL}/depurar_aviso`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)})
+    .then(r=>{if(!r.ok)throw 0; if(btn){btn.textContent='OK '+ids.length; btn.disabled=true;}
+      alert('Guardado en '+ids.length+' avisos. Aprete "Clasificar + dashboard" para aplicar.');})
+    .catch(()=>{if(btn){btn.textContent='!';} alert('No pude guardar: el panel (PANEL.bat) esta abierto?');});
+}
+function abrirSelectorVersion(cid, actual, sugeridas, btn, idsLote, filasLote){
+  // overlay con: versión del dueño, sugerencias del modelo, y campo libre
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--bg,#fff);border-radius:14px;padding:20px;max-width:520px;width:90%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)';
+  // Marcar como ⭐ sugeridas las versiones que coinciden con palabras del
+  // texto del vendedor (ej: "allure" -> las Allure primero, resaltadas).
+  const palabras=(actual||'').toLowerCase().split(/[^a-záéíóúüñ0-9.]+/).filter(w=>w.length>=2);
+  const coincide=s=>{
+    const st=s.txt.toLowerCase();
+    return palabras.some(w=>st.includes(w));
+  };
+  sugeridas.sort((a,b)=>(coincide(b)?1:0)-(coincide(a)?1:0) || b.n-a.n);
+  const chips = sugeridas.length
+    ? sugeridas.map(s=>{
+        const match=coincide(s);
+        return `<button class="ver-sug" data-v="${s.txt.replace(/"/g,'&quot;')}"
+        style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 12px;border:1px solid ${match?'var(--signal,#3b82f6)':'var(--line)'};border-radius:8px;background:${match?'rgba(59,130,246,.08)':'var(--panel)'};cursor:pointer;font-size:13px">
+        ${match?'⭐ ':''}${s.txt} <span style="color:var(--muted)">· ${s.n} avisos</span>${match?' <span style="color:var(--signal,#3b82f6);font-size:11px">coincide con lo que escribió</span>':''}</button>`;
+      }).join('')
+    : '<div style="color:var(--muted);font-size:13px">El sistema no tiene versiones sugeridas para este modelo todavía.</div>';
+  box.innerHTML=`
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px">${idsLote?('Corregir versión de '+idsLote.length+' avisos (en lote)'):'Corregir versión de este aviso'}</div>
+    ${filasLote&&filasLote.length?`<div style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:6px 0;font-size:11px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="color:var(--muted);text-align:left"><th style="padding:3px 8px">Año</th><th style="padding:3px 8px">Km</th><th style="padding:3px 8px">Precio</th><th style="padding:3px 8px">Comentario</th><th style="padding:3px 8px">Aviso</th></tr></thead>
+        <tbody>${filasLote.map(f=>`<tr style="border-top:1px solid var(--line)">
+          <td style="padding:3px 8px">${f[2]||''}</td>
+          <td style="padding:3px 8px">${f[5]?f0(f[5]*1000):'—'}</td>
+          <td style="padding:3px 8px">${f[6]?fM(f[6]):'—'}</td>
+          <td style="padding:3px 8px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f[11])}">${esc((f[11]||'').slice(0,40))}</td>
+          <td style="padding:3px 8px">${f[13]?`<a target="_blank" rel="noopener" href="${f[13]}" style="color:var(--signal,#3b82f6)">ver</a>`:'—'}</td>
+        </tr>`).join('')}</tbody></table></div>`:''}
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Lo que escribió el vendedor: <b style="color:var(--ink)">${actual||'(vacío)'}</b></div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px">Versiones de este modelo (elegí la que corresponde según las fotos):</div>
+    ${chips}
+    <div style="font-size:12px;font-weight:600;margin:14px 0 4px">O escribila a mano:</div>
+    <input id="ver-libre" type="text" value="${(actual||'').replace(/"/g,'&quot;')}"
+      style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button id="ver-cancel" class="vbtn">Cancelar</button>
+      <button id="ver-ok" class="vbtn primary">Guardar</button>
+    </div>`;
+  ov.appendChild(box); document.body.appendChild(ov);
+  const cerrar=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)cerrar();});
+  box.querySelector('#ver-cancel').onclick=cerrar;
+  box.querySelectorAll('.ver-sug').forEach(b=>{
+    b.onclick=()=>{ box.querySelector('#ver-libre').value=b.dataset.v; };
+  });
+  box.querySelector('#ver-ok').onclick=()=>{
+    const v=box.querySelector('#ver-libre').value.trim();
+    if(v){
+      if(idsLote && idsLote.length) guardarAvisoLote(idsLote, {version:v}, btn);
+      else if(v!==actual) guardarAviso(cid, {version:v}, btn);
+    }
+    cerrar();
+  };
+}
+window.fijarGen=function(cid, g, btn){
+  guardarAviso(cid, {gen:g}, btn, ()=>{
+    btn.parentElement.querySelectorAll('button').forEach(b=>{if(b!==btn)b.style.opacity=.35;});
+  });
+};
+window.descartarAviso=function(cid, i, btn){
+  guardarAviso(cid, {excluir:true}, btn, ()=>{
+    if(modalState && !modalState.rows[i][5]){ modalState.excluded.add(i); renderCompTable(); renderRecalc(); }
+  });
+};
+window.toggleComp=function(i){
+  if(modalState.rows[i][5]) return; // self no se excluye
+  if(modalState.excluded.has(i)) modalState.excluded.delete(i); else modalState.excluded.add(i);
+  renderCompTable(); renderRecalc();
+};
+
+function irAArreglarVersiones(marca, modelo){
+  // cerrar modal, cambiar a pestaña Arreglar versiones y precargar el modelo
+  document.getElementById('modal').style.display='none';
+  document.querySelector('.tab[data-view="versiones"]').click();
+  setTimeout(()=>{
+    const selMa=document.getElementById('vm-marca');
+    // buscar la marca (capitalizada) en el selector
+    const maCap=[...selMa.options].find(o=>o.value.toLowerCase()===marca.toLowerCase());
+    if(maCap){ selMa.value=maCap.value; vmMarca();
+      setTimeout(()=>{
+        const selMo=document.getElementById('vm-modelo');
+        const moCap=[...selMo.options].find(o=>o.textContent.toLowerCase().startsWith(modelo.toLowerCase()));
+        if(moCap){ selMo.value=moCap.value; vmCargar(); }
+      },100);
+    }
+  },100);
+}
+window.openComps=function(id){
+  const op=opById[id], c=DATA.comps[id];
+  if(!c) return;
+  const ex=new Set(op._excluded||[]);
+  // Los comparables con km dudoso arrancan DESTILDADOS: no ensucian el
+  // cálculo del precio justo, pero se ven y podés tildarlos si querés.
+  // (Solo la primera vez que abrís; si ya guardaste una selección, se respeta.)
+  if(!op._excluded){
+    c.rows.forEach((r,i)=>{ if(r[9]===1 && r[5]!==1) ex.add(i); });  // r[9]=km_dudoso, r[5]=self
+  }
+  // Si el km publicado es dudoso, el motor calculó con el km típico de sus
+  // comparables: usar ese mismo km en todo el modal y AVISARLO.
+  let notaKm='';
+  if(op.km_norm && Math.abs(op.km_norm-op.km)>1000){
+    notaKm=` · (!) km publicado (${f0(op.km)}) dudoso: cálculos hechos con km típico ~${f0(Math.round(op.km_norm/1000)*1000)}`;
+    op=Object.assign({},op,{km:op.km_norm});
+  }
+  modalState={op, rows:c.rows, excluded:ex, full:c.n,
+              sortKey:'precio', sortDir:-1, filtroAños:new Set(), filtroGens:new Set()};
+  document.getElementById('m-title').textContent=`${op.marca} ${op.modelo} · comparables`;
+  renderFiltrosComp();
+  const btnFix=document.getElementById('m-fix-ver');
+  if(btnFix){ btnFix.onclick=()=>irAArreglarVersiones(op.marca, op.modelo); }
+  const capNote = c.n>c.rows.length ? ` (muestra de ${c.rows.length} de ${c.n})` : '';
+  document.getElementById('m-sub').textContent=
+    `Avisos del mismo modelo entre ${op.año-3} y ${op.año+3}${capNote}. Destildá los que no correspondan y mirá cómo cambia el precio justo.` + notaKm;
+  renderCompTable(); renderRecalc();
+  document.getElementById('modal-bg').classList.add('open');
+};
+function closeModal(){document.getElementById('modal-bg').classList.remove('open');modalState=null;}
+document.getElementById('m-close').addEventListener('click',closeModal);
+document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target.id==='modal-bg')closeModal();});
+document.getElementById('coment-bg').addEventListener('click',e=>{if(e.target.id==='coment-bg')cerrarComentario();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.getElementById('m-reset').addEventListener('click',()=>{
+  if(modalState){modalState.excluded.clear();renderCompTable();renderRecalc();}
+});
+document.getElementById('m-save').addEventListener('click',()=>{
+  if(!modalState)return;
+  const {op,rows,excluded}=modalState;
+  const inc=rows.filter((_,i)=>!excluded.has(i));
+  const fair=fairFrom(inc, Math.round(op.km/1000), op.año);
+  op.precio_justo = fair.val!=null ? Math.round(fair.val) : null;
+  op.descuento = (fair.val!=null) ? +(((fair.val-op.precio)/fair.val)*100).toFixed(1) : null;
+  op.comparables = inc.length;
+  op.metodo = fair.method;
+  op._excluded = [...excluded];
+  op._editado = true;
+  closeModal();
+  renderTable();
+});
+
+</script>
+<script>
+// --- Barra de control: habla con panel.py en localhost:8777 ---
+const CTL_URL='http://localhost:8777';
+function ctlMsg(txt, cls){
+  const m=document.getElementById('ctl-msg');
+  m.textContent=txt; m.className=cls||'';
+  if(txt) setTimeout(()=>{m.textContent='';m.className='';}, 8000);
+}
+async function cargarRelleno(){
+  const chk=document.getElementById('ctl-relleno');
+  const txt=document.getElementById('ctl-relleno-txt');
+  if(!chk) return;
+  try{
+    const r=await fetch(`${CTL_URL}/relleno_estado`); if(!r.ok) throw 0;
+    const e=await r.json();
+    chk.checked=!!e.activo; chk.disabled=false;
+    txt.textContent=e.activo?'Activado':'En stand by';
+  }catch(_){ chk.disabled=true; txt.textContent='(abrí PANEL.bat para controlarlo)'; }
+}
+function setRelleno(chk){
+  const txt=document.getElementById('ctl-relleno-txt');
+  fetch(`${CTL_URL}/relleno_set?on=${chk.checked?1:0}`)
+    .then(r=>{ if(!r.ok) throw 0;
+      txt.textContent=chk.checked?'Activado':'En stand by';
+      ctlMsg(chk.checked?'✓ Relleno histórico activado':'✓ Relleno histórico en stand by','ok'); })
+    .catch(()=>{ chk.checked=!chk.checked; ctlMsg('El panel no está corriendo: abrí PANEL.bat primero.','err'); });
+}
+function ctl(accion, btn){
+  if(accion==='regenerar'){
+    const bajando=document.getElementById('ctl-bajar') && document.getElementById('ctl-bajar').disabled;
+    if(bajando && !confirm('Hay una bajada de base EN CURSO.\n\nSi regenerás ahora, el dashboard saldrá con datos a medias. Lo recomendado es esperar a que el banner desaparezca (la bajada regenera todo sola al final).\n\n¿Regenerar igual?')) return;
+    ctlMsg('Regenerando: cuando la ventana termine, apretá Ctrl+F5 para ver el dashboard nuevo.','ok');
+  }
+  const lim=document.getElementById('ctl-limite').value||300;
+  const tel=document.getElementById('ctl-tel').checked?1:0;
+  fetch(`${CTL_URL}/lanzar?a=${accion}&limite=${lim}&tel=${tel}`)
+    .then(r=>{ if(!r.ok) throw 0;
+      ctlMsg('✓ lanzado — mirá la ventana de consola. Al terminar, recargá esta página.','ok');})
+    .catch(()=>ctlMsg('El panel no está corriendo: abrí PANEL.bat primero.','err'));
+}
+// Estado de la descarga: "bajando" / "última base descargada"
+async function estadoPanel(){
+  const st=document.getElementById('ctl-status');
+  const btn=document.getElementById('ctl-bajar');
+  try{
+    const r=await fetch(`${CTL_URL}/estado`); if(!r.ok) throw 0;
+    const e=await r.json();
+    if(e.en_curso){
+      st.className='stq run';
+      st.innerHTML='⏳ Bajando'+(e.etapa&&e.etapa!=='listo'?' — etapa '+e.etapa:'…')+' (desde '+e.inicio+') '
+        +'<button class="cbtn sec" style="font-size:11px;padding:2px 8px;margin-left:6px" '
+        +'onclick="detenerCorrida(this)">Detener</button>'
+        +' <button class="cbtn" style="padding:3px 10px;font-size:11px" title="Borra la marca de corrida colgada sin tocar procesos. Usalo cuando el banner queda pegado tras un error." onclick="limpiarMarca(this)">Limpiar marca</button>';
+      btn.disabled=true;
+    }else if(e.colgada){
+      st.className='stq warn';
+      st.innerHTML='(!) La corrida iniciada '+e.inicio+' quedó en '+(e.etapa&&e.etapa!=='listo'?('la etapa '+e.etapa):'una etapa intermedia')+'. '
+        +'<button class="cbtn" style="font-size:11px;padding:3px 10px;margin-left:6px" '
+        +'title="Retoma la cadena exactamente desde la etapa pendiente, sin repetir lo ya hecho." '
+        +'onclick="continuarBajada(this)">Continuar donde quedó</button>'
+        +' <button class="cbtn sec" style="font-size:11px;padding:2px 8px;margin-left:6px" '
+        +'onclick="descartarCorrida(this)">Descartar aviso</button>';
+      btn.disabled=false;
+    }else{
+      st.className='stq done';
+      st.textContent=e.ultima ? ('Última base descargada: '+e.ultima) : 'Sin descargas registradas aún';
+      btn.disabled=false;
+    }
+  }catch(_){ st.className='stq'; st.textContent=''; }
+}
+window.continuarBajada=function(b){
+  b.disabled=true;
+  fetch(`${CTL_URL}/lanzar?a=continuar&limite=800&tel=0`).then(r=>{if(!r.ok)throw 0;return r.text();})
+    .then(()=>{ctlMsg('Retomando la bajada desde la etapa pendiente…','ok'); setTimeout(()=>location.reload(),1500);})
+    .catch(()=>{b.disabled=false; ctlMsg('No pude continuar: ¿el panel (PANEL.bat) está abierto?','err');});
+};
+window.limpiarMarca=function(b){
+  b.disabled=true;
+  fetch(`${CTL_URL}/descartar_corrida`)
+    .then(r=>{if(!r.ok)throw 0; ctlMsg('Marca limpiada: el banner desaparece en unos segundos.','ok'); setTimeout(()=>location.reload(),1500);})
+    .catch(()=>{b.disabled=false; ctlMsg('No pude limpiar: ¿el panel (PANEL.bat) está abierto?','err');});
+};
+function detenerCorrida(b){
+  if(!confirm('¿Detener la corrida en curso?\n\nLo ya descargado queda guardado; podés retomar después con los botones de Más opciones.')) return;
+  b.disabled=true; b.textContent='…';
+  fetch(`${CTL_URL}/detener_corrida`)
+    .then(r=>{ if(!r.ok) throw 0;
+      ctlMsg('✓ Corrida detenida. Lo descargado quedó guardado.','ok');
+      estadoPanel(); })
+    .catch(()=>{ b.disabled=false; b.textContent='Detener';
+      ctlMsg('El panel no está corriendo: abrí PANEL.bat primero.','err'); });
+}
+function descartarCorrida(b){
+  b.disabled=true; b.textContent='…';
+  fetch(`${CTL_URL}/descartar_corrida`)
+    .then(r=>{ if(!r.ok) throw 0;
+      ctlMsg('✓ Aviso descartado. Ya podés lanzar una corrida nueva.','ok');
+      estadoPanel(); })
+    .catch(()=>{ b.disabled=false; b.textContent='Descartar aviso';
+      ctlMsg('El panel no está corriendo: abrí PANEL.bat primero.','err'); });
+}
+setInterval(estadoPanel, 15000); estadoPanel();
+
+// --- Pestaña Mercado ---
+(function renderMercado(){
+  const kpis=document.getElementById('mkt-kpis'); if(!kpis) return;
+  const r=DATA.resumen||{}, a=DATA.analisis||{};
+  const card=(l,v,sub)=>`<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;
+      padding:12px 18px;min-width:140px"><div style="font-size:11px;color:var(--muted);font-family:var(--mono);
+      text-transform:uppercase">${l}</div><div style="font-size:20px;font-weight:700">${v}</div>${sub?`<div style="font-size:11px;color:var(--muted)">${sub}</div>`:''}</div>`;
+  kpis.innerHTML=[card('Avisos activos',f0(r.total||0)),card('Precio mediano',fM(r.precio_mediano||0)),
+    card('Oportunidades oro',f0(r.op_oro||0)),card('Bajo precio',f0(r.op_precio||0)),card('Bajo km',f0(r.op_km||0))].join('');
+
+  // barra horizontal reusable
+  const barra=(label,val,max,color,txt)=>{
+    const w=Math.max(2,Math.round(100*val/(max||1)));
+    return `<div style="display:flex;align-items:center;gap:10px;margin:3px 0;font-size:13px">
+      <div style="width:190px;text-align:right;color:var(--ink)">${label}</div>
+      <div style="flex:1;background:var(--line);border-radius:5px;height:20px;position:relative;max-width:420px">
+        <div style="width:${w}%;background:${color};height:100%;border-radius:5px"></div></div>
+      <div style="width:130px;color:var(--muted)">${txt}</div></div>`;
+  };
+
+  // 1. ALERTAS
+  const al=a.alertas||[];
+  document.getElementById('mkt-alertas').innerHTML = al.length
+    ? al.slice(0,10).map(x=>barra(`${x.marca} ${x.modelo}`, x.pct_nuevos, 100, 'var(--warn,#c0392b)',
+        `${x.pct_nuevos}% son 0-1 año · ${x.avisos} avisos`)).join('')
+    : '<p class="lead">Sin modelos con exceso de autos casi nuevos a la venta. (Buena señal general.)</p>';
+
+  // 2. DEPRECIACIÓN — mostrar los que MÁS deprecian (mejores compras usadas)
+  const dp=a.depreciacion||[];
+  const maxP = Math.max(...dp.map(x=>x.perdida_3a), 1);
+  document.getElementById('mkt-deprec').innerHTML = dp.length
+    ? `<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Ordenado por mayor depreciación (mejor oportunidad de compra usada):</div>`
+      + dp.slice(0,12).map(x=>barra(x.marca, x.perdida_3a, maxP,
+          x.perdida_3a>=45?'var(--good,#3a9d5d)':'var(--signal,#3b82f6)',
+          `pierde ${x.perdida_3a}% · retiene ${x.retiene_3a}%`)).join('')
+    : '<p class="lead">Faltan datos de precio 0a vs 3a para calcular depreciación.</p>';
+
+  // 3. SEGMENTOS
+  const sg=a.segmentos||[];
+  const maxS=Math.max(...sg.map(x=>x.pct_oro),1);
+  const nombreSeg={suv:'SUV',pickup:'Pickup / Utilitario',city:'City car / Compacto'};
+  document.getElementById('mkt-seg').innerHTML = sg.length
+    ? sg.map(x=>barra(nombreSeg[x.segmento]||x.segmento, x.pct_oro, maxS, 'var(--gold,#c79a3a)',
+        `${x.pct_oro}% oro · ${x.oro} de ${f0(x.avisos)}`)).join('')
+    : '<p class="lead">Sin segmentos con volumen suficiente.</p>';
+
+  // 4. PANORAMA POR MARCA (tabla ordenable)
+  let marcas=(a.por_marca||[]).slice();
+  let mkSort={k:'avisos',dir:-1};
+  function pintarMarcas(){
+    marcas.sort((x,y)=>{const va=x[mkSort.k],vb=y[mkSort.k];
+      return (va<vb?-1:va>vb?1:0)*mkSort.dir;});
+    document.getElementById('mkt-marca').innerHTML=marcas.slice(0,40).map(x=>
+      `<tr><td>${x.marca}</td><td class="num">${f0(x.avisos)}</td>
+       <td class="num">${fM(x.precio_med)}</td><td class="num">${x.antiguedad_med} años</td>
+       <td class="num">${f0(x.km_med)}</td><td class="num">${x.pct_particular}%</td></tr>`).join('');
+  }
+  document.querySelectorAll('#mkt-marca-tbl thead th[data-mk]').forEach(th=>{
+    th.style.cursor='pointer';
+    th.addEventListener('click',()=>{const k=th.dataset.mk;
+      if(mkSort.k===k)mkSort.dir*=-1; else mkSort={k,dir:k==='marca'?1:-1}; pintarMarcas();});
+  });
+  pintarMarcas();
+
+  const caps=(DATA.capturas||[]);
+  document.getElementById('mkt-nota').innerHTML =
+    `Análisis sobre ${f0(r.total||0)} avisos activos · ${(a.por_marca||[]).length} marcas con volumen. `
+    + (caps.length<2 ? 'La rotación (días de venta) necesita 2+ fechas de captura para activarse.'
+       : `Rotación disponible con ${caps.length} fechas.`);
+})();
+
+// --- Pestaña Depuración BBDD ---
+// ===== Arreglar versiones por modelo =====
+const DM = (DATA.depurador_modelos||{});
+const vmCambios = {};   // clave_modelo -> {fusiones:[[claves]], renombres:{clave:txt}, excluidas:[claves]}
+let vmSeleccion = new Set();
+
+function vmInit(){
+  const sel=document.getElementById('vm-marca'); if(!sel) return;
+  const marcas=[...new Set(Object.values(DM).map(m=>m.marca))].sort();
+  sel.innerHTML='<option value="">—</option>'+marcas.map(m=>`<option>${m}</option>`).join('');
+}
+function vmMarca(){
+  const ma=document.getElementById('vm-marca').value;
+  const mods=Object.values(DM).filter(m=>m.marca===ma)
+    .sort((a,b)=>b.total-a.total).map(m=>({mo:m.modelo,n:m.total}));
+  document.getElementById('vm-modelo').innerHTML='<option value="">—</option>'
+    +mods.map(m=>`<option>${m.mo} (${m.n})</option>`).join('');
+  document.getElementById('vm-lista').innerHTML='';
+  document.getElementById('vm-resumen').textContent='';
+}
+function vmClaveModelo(){
+  const ma=document.getElementById('vm-marca').value;
+  const moRaw=document.getElementById('vm-modelo').value;
+  const mo=moRaw.replace(/\s*\(\d+\)\s*$/,'');
+  const entry=Object.entries(DM).find(([k,v])=>v.marca===ma && v.modelo===mo);
+  return entry?entry[0]:null;
+}
+function vmCargar(){
+  vmSeleccion.clear();
+  const k=vmClaveModelo(); if(!k){document.getElementById('vm-lista').innerHTML='';return;}
+  const m=DM[k];
+  const cambios=vmCambios[k]||{fusiones:[],renombres:{},excluidas:[]};
+  const ident=m.versiones.filter(v=>v.identificada).length;
+  document.getElementById('vm-resumen').innerHTML=
+    `<b>${m.total}</b> avisos · <b>${m.n_versiones}</b> versiones propuestas · `
+    +`${ident} identificadas, ${m.n_versiones-ident} sin identificar (revisá esas primero)`;
+  document.getElementById('vm-lista').innerHTML=m.versiones.map((v,i)=>{
+    const excl=(cambios.excluidas||[]).includes(v.clave);
+    const nombre=(cambios.renombres||{})[v.clave]||v.etiqueta;
+    const añosTxt=v.años?`${v.años[0]}–${v.años[1]}`:'—';
+    const precAño=Object.entries(v.precio_año||{}).map(([a,p])=>
+      `<span style="display:inline-block;margin:2px 8px 2px 0;font-size:11px;color:var(--muted)">${a}: ${fM(p)}</span>`).join('');
+    const avisos=v.avisos.slice(0,40).map(av=>
+      `<tr><td class="num">${av.año||'—'}</td><td class="num">${av.km!=null?f0(av.km):'—'}</td>
+        <td class="num">${av.precio!=null?fM(av.precio):'—'}</td>
+        <td>${av.ent==='P'?'<span class="badge b-part">Part</span>':'<span class="badge b-auto">Auto</span>'}</td>
+        <td style="font-size:11px;color:var(--muted)">${av.texto}</td>
+        <td>${av.url?`<a class="link-btn" target="_blank" href="${av.url}">ver</a>`:'—'}</td></tr>`).join('');
+    return `<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;${excl?'opacity:.5':''}">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel)">
+        <input type="checkbox" onchange="vmToggleSel('${v.clave}',this)" title="Marcar para fusionar con otra">
+        <div style="flex:1">
+          <input type="text" value="${nombre.replace(/"/g,'&quot;')}" data-clave="${v.clave}"
+            onchange="vmRenombrar('${k}','${v.clave}',this.value)"
+            style="font-size:14px;font-weight:600;border:none;background:transparent;width:100%;color:var(--ink)">
+          <div style="font-size:12px;color:var(--muted)">${v.n} avisos · mediana ${fM(v.precio_med)} · años ${añosTxt} ${v.identificada?'':'· <span style=\'color:var(--warn,#c0392b)\'>(!) sin identificar</span>'}</div>
+        </div>
+        <button class="comp-btn" onclick="vmExpandir(this)" title="Ver los avisos">${'▾ avisos'}</button>
+        <button class="comp-btn" onclick="vmExcluir('${k}','${v.clave}',this)" title="Excluir esta versión del análisis">${excl?'incluir':'excluir'}</button>
+      </div>
+      <div style="padding:6px 14px 2px">${precAño}</div>
+      <div class="vm-avisos" style="display:none;padding:0 14px 12px">
+        <table class="tbl" style="font-size:12px"><thead><tr><th class="num">Año</th><th class="num">Km</th>
+          <th class="num">Precio</th><th>Vend.</th><th>Texto original</th><th>Aviso</th></tr></thead>
+          <tbody>${avisos}</tbody></table>
+      </div>
+    </div>`;
+  }).join('');
+}
+function vmExpandir(btn){
+  const box=btn.closest('div').parentElement.querySelector('.vm-avisos');
+  const vis=box.style.display!=='none';
+  box.style.display=vis?'none':'block'; btn.textContent=vis?'▾ avisos':'▴ ocultar';
+}
+function vmToggleSel(clave,chk){
+  if(chk.checked) vmSeleccion.add(clave); else vmSeleccion.delete(clave);
+  const btn=document.getElementById('vm-fusionar');
+  const info=document.getElementById('vm-fusion-info');
+  if(vmSeleccion.size>=2){ btn.style.display=''; info.textContent=`${vmSeleccion.size} versiones seleccionadas`; }
+  else { btn.style.display='none'; info.textContent=vmSeleccion.size===1?'Seleccioná otra para fusionar':''; }
+}
+function vmCambiosDe(k){ vmCambios[k]=vmCambios[k]||{fusiones:[],renombres:{},excluidas:[]}; return vmCambios[k]; }
+function vmRenombrar(k,clave,txt){ vmCambiosDe(k).renombres[clave]=txt; }
+function vmExcluir(k,clave,btn){
+  const c=vmCambiosDe(k); const i=c.excluidas.indexOf(clave);
+  if(i>=0){c.excluidas.splice(i,1);} else {c.excluidas.push(clave);}
+  vmCargar();
+}
+function vmFusionar(){
+  const k=vmClaveModelo(); if(!k||vmSeleccion.size<2) return;
+  const claves=[...vmSeleccion];
+  const nombre=window.prompt('Nombre de la versión unificada:',
+    DM[k].versiones.find(v=>v.clave===claves[0]).etiqueta);
+  if(!nombre) return;
+  const c=vmCambiosDe(k);
+  c.fusiones.push({claves, nombre});
+  claves.forEach(cl=>{ c.renombres[cl]=nombre; });
+  vmSeleccion.clear();
+  document.getElementById('vm-fusionar').style.display='none';
+  document.getElementById('vm-fusion-info').textContent='';
+  ctlMsg(`✓ ${claves.length} versiones marcadas para fusionar como "${nombre}". Guardá para aplicar.`,'ok');
+  vmCargar();
+}
+function vmGuardar(btn){
+  const k=vmClaveModelo();
+  if(!k||!vmCambios[k]){ ctlMsg('No hay cambios para guardar en este modelo.',''); return; }
+  btn.disabled=true;
+  fetch(`${CTL_URL}/depurar_versiones`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({modelo:k, cambios:vmCambios[k]})})
+    .then(r=>{ if(!r.ok) throw 0; btn.disabled=false;
+      ctlMsg('✓ Guardado. En el próximo "Clasificar + dashboard" se aplica.','ok'); })
+    .catch(()=>{ btn.disabled=false; ctlMsg('El panel no está corriendo: abrí PANEL.bat.','err'); });
+}
+function ctlMsg(txt,tipo){
+  const el=document.getElementById('vm-msg')||document.getElementById('ctl-status');
+  if(el){ el.textContent=txt; el.style.color=tipo==='err'?'var(--warn,#c0392b)':tipo==='ok'?'var(--good,#3a9d5d)':'var(--muted)'; }
+}
+// ===== Corregir generaciones por modelo =====
+const GE = (DATA.generaciones_edit||{});
+let gmRangosActual = [];   // [{gen,desde,hasta}]
+let gmKeyActual = null;
+
+function gmInit(){
+  const sel=document.getElementById('gm-marca'); if(!sel) return;
+  const marcas=[...new Set(Object.values(GE).map(m=>m.marca))].sort();
+  sel.innerHTML='<option value="">—</option>'+marcas.map(m=>`<option>${m}</option>`).join('');
+}
+function gmMarca(){
+  const ma=document.getElementById('gm-marca').value;
+  // modelos de esa marca, ordenados por total de avisos (suma del conteo)
+  const mods=Object.values(GE).filter(m=>m.marca===ma).map(m=>({
+    mo:m.modelo, n:Object.values(m.conteo||{}).reduce((a,b)=>a+b,0)
+  })).sort((a,b)=>b.n-a.n);
+  document.getElementById('gm-modelo').innerHTML='<option value="">—</option>'
+    +mods.map(m=>`<option>${m.mo} (${m.n})</option>`).join('');
+  document.getElementById('gm-panel').style.display='none';
+}
+function gmKey(){
+  const ma=document.getElementById('gm-marca').value;
+  const moRaw=document.getElementById('gm-modelo').value;
+  const mo=moRaw.replace(/\s*\(\d+\)\s*$/,'');
+  const entry=Object.entries(GE).find(([k,v])=>v.marca===ma && v.modelo===mo);
+  return entry?entry[0]:null;
+}
+function gmCargar(){
+  const k=gmKey(); gmKeyActual=k;
+  if(!k){document.getElementById('gm-panel').style.display='none';return;}
+  const info=GE[k];
+  gmRangosActual = (info.rangos||[]).map(r=>({gen:r.gen, desde:r.desde, hasta:r.hasta}));
+  document.getElementById('gm-panel').style.display='';
+  gmRenderRangos(info.conteo||{});
+  gmRenderAvisos(k);
+  document.getElementById('gm-msg').textContent='';
+}
+function gmRenderRangos(conteo){
+  const cont=document.getElementById('gm-rangos');
+  if(!gmRangosActual.length){ cont.innerHTML='<div style="color:var(--muted);font-size:13px">Este modelo no tiene generaciones definidas. Agregá una con el botón de abajo.</div>'; return; }
+  cont.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="text-align:left;color:var(--muted);font-size:11px">
+      <th style="padding:4px 8px">Generación</th><th style="padding:4px 8px">Desde</th>
+      <th style="padding:4px 8px">Hasta</th><th style="padding:4px 8px">Avisos</th><th></th></tr></thead>
+    <tbody>${gmRangosActual.map((r,i)=>`
+      <tr>
+        <td style="padding:4px 8px"><input value="${r.gen}" onchange="gmEdit(${i},'gen',this.value)" style="width:80px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel)"></td>
+        <td style="padding:4px 8px"><input type="number" value="${r.desde}" onchange="gmEdit(${i},'desde',this.value)" style="width:75px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel)"></td>
+        <td style="padding:4px 8px"><input type="number" value="${r.hasta==null?'':r.hasta}" placeholder="actual" onchange="gmEdit(${i},'hasta',this.value)" style="width:75px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel)"></td>
+        <td style="padding:4px 8px;color:var(--muted)">${conteo[r.gen]||0}</td>
+        <td style="padding:4px 8px"><button onclick="gmBorrarRango(${i})" title="Borrar" style="background:none;border:none;color:var(--warn,#c0392b);cursor:pointer;font-size:15px">×</button></td>
+      </tr>`).join('')}</tbody></table>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">Si dos generaciones se solapan en un año (cambio a mitad de año), dejá que los rangos se pisen — el sistema marcará ese año como ambiguo (±) para revisar por fotos.</div>`;
+}
+function gmEdit(i,campo,val){
+  if(campo==='gen') gmRangosActual[i].gen=val.trim();
+  else gmRangosActual[i][campo] = val===''?null:parseInt(val,10);
+}
+function gmAgregarRango(){
+  gmRangosActual.push({gen:'', desde:new Date().getFullYear(), hasta:null});
+  gmRenderRangos(GE[gmKeyActual]?.conteo||{});
+}
+function gmBorrarRango(i){ gmRangosActual.splice(i,1); gmRenderRangos(GE[gmKeyActual]?.conteo||{}); }
+function gmGuardarRangos(btn){
+  const k=gmKeyActual; if(!k) return;
+  const info=GE[k];
+  // validar
+  for(const r of gmRangosActual){
+    if(!r.gen || r.desde==null){ document.getElementById('gm-msg').textContent='(!) cada rango necesita generación y año desde'; return; }
+  }
+  btn.disabled=true; btn.textContent='Guardando...';
+  fetch(`${CTL_URL}/guardar_generaciones`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({marca:info.marca, modelo:info.modelo, rangos:gmRangosActual})})
+    .then(r=>{if(!r.ok)throw 0;
+      document.getElementById('gm-msg').innerHTML='✓ guardado. Apretá "Clasificar + dashboard" para aplicar.';
+      btn.disabled=false; btn.textContent='Guardar cortes de años';})
+    .catch(()=>{document.getElementById('gm-msg').textContent='(!) no pude guardar (¿PANEL.bat abierto?)';
+      btn.disabled=false; btn.textContent='Guardar cortes de años';});
+}
+function gmRenderAvisos(k){
+  // buscar los avisos de este modelo en las oportunidades para poder corregir su gen
+  const info=GE[k];
+  const avisos=(DATA.oportunidades||[]).filter(o=>
+    (o.marca||'').toLowerCase()===info.marca && (o.modelo||'').toLowerCase()===info.modelo);
+  const cont=document.getElementById('gm-avisos');
+  if(!avisos.length){ cont.innerHTML='<div style="color:var(--muted);font-size:13px">No hay avisos de este modelo en el radar de oportunidades. (Solo se pueden corregir desde acá los que aparecen como oportunidad; el resto, desde su modal de comparables.)</div>'; return; }
+  const gens=[...new Set((info.rangos||[]).map(r=>r.gen))];
+  cont.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="text-align:left;color:var(--muted);font-size:11px">
+      <th style="padding:4px 8px">Año</th><th style="padding:4px 8px">Versión</th>
+      <th style="padding:4px 8px">Gen actual</th><th style="padding:4px 8px">Corregir a</th></tr></thead>
+    <tbody>${avisos.slice(0,60).map(o=>`
+      <tr>
+        <td style="padding:4px 8px">${o.año}${o.gens_pos?' ±':''}</td>
+        <td style="padding:4px 8px;color:var(--muted)">${(o.version||'—').slice(0,30)}</td>
+        <td style="padding:4px 8px">${o.gen||'—'}</td>
+        <td style="padding:4px 8px">${gens.map(g=>`<button onclick="guardarAviso('${o.id}',{gen:'${g}'},this)" style="margin-right:4px;padding:3px 9px;border:1px solid var(--line);border-radius:6px;background:${o.gen===g?'var(--accent,#2d7)':'transparent'};cursor:pointer;font-size:11px">${g}</button>`).join('')}</td>
+      </tr>`).join('')}</tbody></table>`;
+}
+// ===== Depuración BBDD: tabla plana por modelo (spec del usuario) =====
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const DEPU=(DATA.depuracion_avisos||{});
+const FICHAS=(DATA.fichas_full||{});
+let dbFiltroGens=new Set(), dbKey=null;
+function dbInit(){
+  const sel=document.getElementById('db-marca'); if(!sel) return;
+  const marcas=[...new Set(Object.keys(DEPU).map(k=>k.split('|')[0]))].sort();
+  sel.innerHTML='<option value="">—</option>'+marcas.map(m=>`<option>${m}</option>`).join('');
+}
+function dbMarca(){
+  const ma=document.getElementById('db-marca').value;
+  const mods=Object.entries(DEPU).filter(([k])=>k.split('|')[0]===ma)
+    .map(([k,v])=>({mo:k.split('|')[1],n:v.length})).sort((a,b)=>b.n-a.n);
+  document.getElementById('db-modelo').innerHTML='<option value="">—</option>'
+    +mods.map(m=>`<option value="${m.mo}">${m.mo} (${m.n})</option>`).join('');
+  document.getElementById('db-tabla').innerHTML=''; dbKey=null;
+}
+function dbCargar(){
+  const ma=document.getElementById('db-marca').value;
+  const mo=document.getElementById('db-modelo').value;
+  dbKey=(ma&&mo)?`${ma}|${mo}`:null; dbFiltroGens.clear(); dbFiltroSel=null; dbGensRender(); dbResumen(); dbRender();
+}
+function dbGensRender(){
+  const cont=document.getElementById('db-gens'); if(!cont) return;
+  if(!dbKey){cont.innerHTML='';return;}
+  const gens=[...new Set(DEPU[dbKey].map(r=>r[1]||'—'))];
+  cont.innerHTML='<span style="color:var(--muted);font-size:12px">Gen:</span> '+gens.map(g=>
+    `<button onclick="dbToggleGen('${g}')" style="padding:3px 9px;border-radius:12px;cursor:pointer;font-size:11px;border:1px solid var(--line);background:${dbFiltroGens.has(g)?'var(--signal,#3b82f6)':'var(--panel)'};color:${dbFiltroGens.has(g)?'#fff':'inherit'}">${g}</button>`).join(' ');
+}
+window.dbToggleGen=function(g){
+  if(dbFiltroGens.has(g)) dbFiltroGens.delete(g); else dbFiltroGens.add(g);
+  dbGensRender(); dbResumen(); dbRender();
+};
+let dbFiltroSel=null, dbGrupos=[], dbVerFicha=false;
+window.dbToggleFicha=function(){
+  dbVerFicha=!dbVerFicha;
+  const b=document.getElementById('db-ficha-btn');
+  if(b) b.textContent=dbVerFicha?'Ocultar ficha técnica':'Mostrar ficha técnica';
+  dbRender();
+};
+function dbResumen(){
+  const cont=document.getElementById("db-resumen"); if(!cont) return;
+  if(!dbKey){cont.innerHTML="";return;}
+  let rows=DEPU[dbKey];
+  if(dbFiltroGens.size) rows=rows.filter(r=>dbFiltroGens.has(r[1]||"—"));
+  const con={}, sin={};
+  rows.forEach(r=>{
+    const gen=r[1]||"—";
+    if(r[4]){ const k=gen+"||"+r[4]; const g=(con[k]=con[k]||{gen,ver:r[4],n:0,campo:4,val:r[4],ids:[],crudas:{},a0:9999,a1:0,fid:null});
+      g.n++; g.ids.push(r[0]); const cx=(r[3]||"(sin texto)"); g.crudas[cx]=(g.crudas[cx]||0)+1;
+      if(r[2]){g.a0=Math.min(g.a0,r[2]);g.a1=Math.max(g.a1,r[2]);}
+      if(r[6]){g.p0=Math.min(g.p0||1e12,r[6]);g.p1=Math.max(g.p1||0,r[6]);}
+      if(!g.fid && FICHAS[r[0]]) g.fid=r[0]; }
+    else { const tx=(r[3]||"(sin texto)"); const k=gen+"||"+tx; const g=(sin[k]=sin[k]||{gen,tx,n:0,ids:[],a0:9999,a1:0,fid:null});
+      g.n++; g.ids.push(r[0]);
+      if(r[2]){g.a0=Math.min(g.a0,r[2]);g.a1=Math.max(g.a1,r[2]);}
+      if(r[6]){g.p0=Math.min(g.p0||1e12,r[6]);g.p1=Math.max(g.p1||0,r[6]);}
+      if(!g.fid && FICHAS[r[0]]) g.fid=r[0]; }
+  });
+  const conArr=Object.values(con).sort((a,b)=>a.gen.localeCompare(b.gen)||b.n-a.n);
+  const sinArr=Object.values(sin).sort((a,b)=>a.gen.localeCompare(b.gen)||b.n-a.n);
+  let idx=0, prevGen=null;
+  const sinRows=sinArr.map(s=>{
+    if(s.gen!==prevGen){idx=0;prevGen=s.gen;}
+    idx++;
+    return {gen:s.gen, ver:"sin determinar "+idx, txt:s.tx, n:s.n, campo:3, val:s.tx, ids:s.ids, a0:s.a0, a1:s.a1, fid:s.fid, p0:s.p0, p1:s.p1};
+  });
+  dbGrupos=conArr.concat(sinRows);
+  const fila=(g,i)=>{
+    const sel=dbFiltroSel && dbFiltroSel.val===g.val && dbFiltroSel.campo===g.campo;
+    const esSin=g.campo===3;
+    let cruda="";
+    if(esSin) cruda=esc((g.txt||"").slice(0,30));
+    else { const cs=Object.entries(g.crudas||{}).sort((a,b)=>b[1]-a[1]);
+      cruda=cs.length?esc(cs[0][0].slice(0,30))+(cs.length>1?" (+"+(cs.length-1)+")":""):""; }
+    return `<tr style="border-top:1px solid var(--line);cursor:pointer;${sel?"background:rgba(59,130,246,.10)":""}" onclick="dbSelGrupo(${i})">
+      <td style="padding:4px 8px;white-space:nowrap">${g.gen}</td>
+      <td style="padding:4px 8px;color:var(--muted);font-size:11px">${cruda}</td>
+      <td style="padding:4px 8px;${esSin?"color:var(--warn,#c0392b)":"color:var(--signal,#3b82f6)"}">${g.ver}</td>
+      <td style="padding:4px 8px;white-space:nowrap;color:var(--muted)">${g.a0<9999?(g.a0===g.a1?g.a0:g.a0+"–"+g.a1):"—"}</td>
+      <td style="padding:4px 8px;white-space:nowrap;color:var(--muted)">${g.p0?("$"+(g.p0/1e6).toFixed(1)+"–"+(g.p1/1e6).toFixed(1)+"M"):"—"}</td>
+      <td style="padding:4px 8px" class="num"><b>${g.n}</b></td>
+      <td style="padding:4px 8px" class="num" style="color:var(--muted)">${(()=>{const tg=dbGrupos.filter(x=>x.gen===g.gen).reduce((a,x)=>a+x.n,0);return tg?Math.round(g.n*100/tg)+"%":"—";})()}</td>
+      <td style="padding:4px 8px">${g.fid?`<button title="Ver la ficha técnica completa de un aviso de este grupo" onclick="event.stopPropagation();verFicha('${g.fid}')" style="border:none;background:none;cursor:pointer">ficha</button>`:""}</td>
+      <td style="padding:4px 8px"><button title="Corregir la versión de TODOS los avisos de este grupo" onclick="event.stopPropagation();dbEditarGrupo(${i},this)" style="border:none;background:none;cursor:pointer">editar</button></td></tr>`;
+  };
+  cont.innerHTML=`<details open style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)">
+    <summary style="cursor:pointer;font-size:13px;font-weight:600">Resumen por generación y versión (click en una fila para filtrar la tabla)</summary>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">
+      <thead><tr style="text-align:left;color:var(--muted);font-size:11px">
+        <th style="padding:4px 8px">Gen</th><th style="padding:4px 8px">Versión (vendedor)</th>
+        <th style="padding:4px 8px">Versión ajustada</th>
+        <th style="padding:4px 8px">Años</th>
+        <th style="padding:4px 8px">Precio</th>
+        <th style="padding:4px 8px" class="num">Avisos</th><th style="padding:4px 8px" class="num" title="Peso de esta versión dentro de su generación">%</th><th title="Ficha técnica de referencia">ficha</th><th></th></tr></thead>
+      <tbody>${dbGrupos.map((g,i)=>fila(g,i)).join("")}</tbody></table>
+    ${dbFiltroSel?`<div style="margin-top:6px"><button onclick="dbSelGrupo(-1)" style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:11px;color:var(--warn,#c0392b)">quitar filtro de grupo</button></div>`:""}
+  </details>`;
+}
+window.verFicha=function(id){
+  const f=FICHAS[id]; if(!f) return;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--bg,#fff);border-radius:14px;padding:20px;max-width:900px;width:94%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)';
+  const filas=Object.entries(f).sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([k,v])=>`<div style='padding:4px 8px;border-bottom:1px solid var(--line);font-size:12px'><span style='color:var(--muted)'>${k}</span><br><b>${v}</b></div>`).join('');
+  box.innerHTML=`<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'>
+    <div style='font-size:16px;font-weight:600'>Ficha técnica completa · ${id}</div>
+    <button onclick='this.closest("div").parentElement.parentElement.remove()' style='border:none;background:none;font-size:18px;cursor:pointer'>cerrar</button></div>
+    <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2px'>${filas}</div>`;
+  ov.appendChild(box); document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+};
+window.dbEditarGrupo=function(i,btn){
+  const g=dbGrupos[i]; if(!g||!g.ids||!g.ids.length) return;
+  const actual=(g.campo===3?g.txt:(Object.entries(g.crudas||{}).sort((a,b)=>b[1]-a[1])[0]||[''])[0])||'';
+  // sugerencias: las versiones dominantes de la MISMA generacion del grupo
+  let sug=dbGrupos.filter(x=>x.gen===g.gen && x.campo===4 && x.n>=2 && x.val!==g.val)
+                  .sort((a,b)=>b.n-a.n).slice(0,14)
+                  .map(x=>({txt:x.val,n:x.n}));
+  const idset=new Set(g.ids);
+  const filas=(DEPU[dbKey]||[]).filter(r=>idset.has(r[0]));
+  abrirSelectorVersion(null, actual, sug, btn, g.ids, filas);
+};
+window.dbSelGrupo=function(i){
+  const g=(i>=0)?dbGrupos[i]:null;
+  dbFiltroSel=(g && dbFiltroSel && dbFiltroSel.val===g.val && dbFiltroSel.campo===g.campo)?null:(g?{campo:g.campo,val:g.val,gen:g.gen}:null);
+  dbResumen(); dbRender();
+};
+function dbRender(){
+  const cont=document.getElementById('db-tabla'); if(!cont||!dbKey){if(cont)cont.innerHTML='';return;}
+  const q=(document.getElementById('db-busca').value||'').toLowerCase();
+  let rows=DEPU[dbKey].filter(r=>{
+    if(dbFiltroGens.size && !dbFiltroGens.has(r[1]||'—')) return false;
+    if(dbFiltroSel){
+      if((r[1]||'—')!==dbFiltroSel.gen) return false;
+      if(dbFiltroSel.campo===4 && r[4]!==dbFiltroSel.val) return false;
+      if(dbFiltroSel.campo===3 && ((r[3]||'(sin texto)')!==dbFiltroSel.val || r[4])) return false;
+    }
+    if(q && !((r[3]||'')+' '+(r[4]||'')+' '+(r[11]||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const specCols = dbVerFicha ? [...new Set(rows.slice(0,500).flatMap(r=>Object.keys(FICHAS[r[0]]||{})))].sort() : [];
+  const tot=rows.length, LIM=500;
+  document.getElementById('db-info').textContent=
+    tot>LIM?`mostrando ${LIM} de ${tot} — afiná con los filtros de gen o el buscador`:`${tot} avisos`;
+  rows=rows.slice(0,LIM);
+  cont.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="text-align:left;color:var(--muted);font-size:11px;position:sticky;top:0;background:var(--panel)">
+      <th style="padding:5px 8px">Gen</th><th style="padding:5px 8px">Año</th>
+      <th style="padding:5px 8px">Versión (vendedor)</th><th style="padding:5px 8px">Versión ajustada</th>
+      ${specCols.map(c=>`<th style="padding:5px 8px;white-space:nowrap">${c}</th>`).join("")}
+      <th style="padding:5px 8px" class="num">Km</th><th style="padding:5px 8px" class="num">Precio</th>
+      <th style="padding:5px 8px" title="Lo que el sistema extrajo del comentario (clasificación automática)">Estado (procesado)</th>
+      <th style="padding:5px 8px">Comentario del vendedor</th><th style="padding:5px 8px">Aviso</th></tr></thead>
+    <tbody>${rows.map(r=>`
+      <tr style="border-top:1px solid var(--line)">
+        <td style="padding:4px 8px;white-space:nowrap">${r[1]||'—'}</td>
+        <td style="padding:4px 8px">${r[2]||''}</td>
+        <td style="padding:4px 8px;color:var(--muted)" title="${esc(r[3])}">${esc(r[3])||'—'}</td>
+        <td style="padding:4px 8px;color:var(--signal,#3b82f6)">${FICHAS[r[0]]?`<button title="Ver ficha técnica completa" onclick="verFicha('${r[0]}')" style="border:none;background:none;cursor:pointer">ficha</button> `:''}${esc(r[4])||'—'}
+          <button title="Corregir versión de este aviso" style="border:none;background:none;cursor:pointer" onclick="corregirVersion('${r[0]}','${(r[3]||'').replace(/'/g,'')}',this)">editar</button></td>
+        ${specCols.map(c=>`<td style="padding:4px 8px;white-space:nowrap;font-size:11px">${(FICHAS[r[0]]||{})[c]||""}</td>`).join("")}
+        <td style="padding:4px 8px" class="num">${r[5]?f0(r[5]*1000):'—'}</td>
+        <td style="padding:4px 8px" class="num">${r[6]?fM(r[6]):'—'}</td>
+        <td style="padding:4px 8px;max-width:180px;font-size:11px;color:var(--signal,#3b82f6)" title="${esc(r[12])}">${esc(r[12])||'—'}</td>
+        <td style="padding:4px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)" title="${esc(r[11])}">${esc(r[11])}</td>
+        <td style="padding:4px 8px;white-space:nowrap">${r[13]?`<a class="link-btn" target="_blank" rel="noopener" href="${r[13]}" style="color:var(--signal,#3b82f6);text-decoration:underline;cursor:pointer">ver</a>`:'<span title="Sin link: regenerá con el último motor.py">—</span>'}</td>
+      </tr>`).join('')}</tbody></table>`;
+}
+// ===== Análisis BI (Fase 1) =====
+let BIDATA=null;
+function biData(){
+  if(BIDATA) return BIDATA;
+  BIDATA=[];
+  for(const k in DEPU){
+    const [ma,mo]=k.split('|');
+    for(const r of DEPU[k]){
+      BIDATA.push({ma,mo,gen:r[1]||'—',anio:r[2]||0,ver:(r[4]||'—').replace('≈ ',''),
+        km:(r[5]||0)*1000,precio:r[6]||0,vend:r[14]||'—',dias:(typeof r[15]==='number'?r[15]:-1),
+        desc:(typeof r[16]==='number'?r[16]:null),url:r[13]||'',seg:(r[17]||'')});
+    }
+  }
+  return BIDATA;
+}
+function biInit(){
+  // absorber la vieja pestaña de rotación como widget del BI (render intacto)
+  const rot=document.getElementById('rotacion'), wrap=document.getElementById('bi-rotwrap');
+  if(rot && wrap && rot.parentElement!==wrap){
+    rot.classList.remove('view'); rot.style.display='block'; wrap.appendChild(rot);
+  }
+  const sel=document.getElementById('bi-marca'); if(!sel||sel.options.length>1) return;
+  const marcas=[...new Set(biData().map(x=>x.ma))].sort();
+  sel.innerHTML='<option value="">todas</option>'+marcas.map(m=>`<option>${m}</option>`).join('');
+  const segs=[...new Set(biData().map(x=>x.seg).filter(Boolean))].sort();
+  document.getElementById('bi-seg').innerHTML='<option value="">todos</option>'+segs.map(s=>`<option>${s}</option>`).join('');
+  biRender();
+}
+window.biMarca=function(){
+  const ma=document.getElementById('bi-marca').value;
+  const mods=[...new Set(biData().filter(x=>!ma||x.ma===ma).map(x=>x.mo))].sort();
+  document.getElementById('bi-modelo').innerHTML='<option value="">todos</option>'+mods.map(m=>`<option>${m}</option>`).join('');
+  biGens(); biRender();
+};
+window.biGens=function(){
+  const ma=document.getElementById('bi-marca').value, mo=document.getElementById('bi-modelo').value;
+  const gens=[...new Set(biData().filter(x=>(!ma||x.ma===ma)&&(!mo||x.mo===mo)).map(x=>x.gen))].sort();
+  document.getElementById('bi-gen').innerHTML='<option value="">todas</option>'+gens.map(g=>`<option>${g}</option>`).join('');
+};
+window.biLimpiar=function(){
+  ['bi-marca','bi-modelo','bi-gen','bi-vend'].forEach(id=>document.getElementById(id).value='');
+  ['bi-a0','bi-a1','bi-p0','bi-p1'].forEach(id=>document.getElementById(id).value='');
+  biMarca();
+};
+function biFiltrado(){
+  const ma=document.getElementById('bi-marca').value, mo=document.getElementById('bi-modelo').value;
+  const ge=document.getElementById('bi-gen').value, ve=document.getElementById('bi-vend').value;
+  const a0=+document.getElementById('bi-a0').value||0, a1=+document.getElementById('bi-a1').value||9999;
+  const p0=(+document.getElementById('bi-p0').value||0)*1e6, p1=(+document.getElementById('bi-p1').value||1e6)*1e6;
+  const sg=document.getElementById('bi-seg')?document.getElementById('bi-seg').value:'';
+  return biData().filter(x=>(!ma||x.ma===ma)&&(!mo||x.mo===mo)&&(!ge||x.gen===ge)&&(!ve||x.vend===ve)
+    &&(!sg||x.seg===sg)&&x.anio>=a0&&x.anio<=a1&&x.precio>=p0&&x.precio<=p1);
+}
+function biMediana(a){if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)];}
+function biBarras(cont, pares, fmt){
+  const max=Math.max(...pares.map(p=>p[1]),1);
+  cont.innerHTML=pares.map(([lab,val])=>`
+    <div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:11px">
+      <div style="min-width:86px;text-align:right;color:var(--muted)">${lab}</div>
+      <div style="flex:1;background:var(--line);border-radius:4px;height:14px;position:relative">
+        <div style="width:${Math.round(val*100/max)}%;background:var(--signal,#3b82f6);height:14px;border-radius:4px"></div></div>
+      <div style="min-width:70px">${fmt?fmt(val):val.toLocaleString('es-CL')}</div></div>`).join('');
+}
+window.biRender=function(){
+  const cont=document.getElementById('bi-kpis'); if(!cont) return;
+  const D=biFiltrado();
+  const precios=D.map(x=>x.precio).filter(Boolean);
+  const dias=D.map(x=>x.dias).filter(d=>d>=0);
+  const total=precios.reduce((a,b)=>a+b,0);
+  const kpi=(lab,val,sub)=>`<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+    <div style="font-size:10px;letter-spacing:.05em;color:var(--muted);text-transform:uppercase">${lab}</div>
+    <div style="font-size:22px;font-weight:700">${val}</div>${sub?`<div style="font-size:10px;color:var(--muted)">${sub}</div>`:''}</div>`;
+  cont.innerHTML=
+    kpi('Avisos', D.length.toLocaleString('es-CL'))+
+    kpi('Precio mediano', precios.length?fM(biMediana(precios)):'—')+
+    kpi('Valor del segmento', total?('$'+(total/1e9).toFixed(1)+' mil M'):'—','suma de precios pedidos')+
+    kpi('Días en mercado', dias.length?biMediana(dias)+' d':'—','mediana desde detección')+
+    kpi('Con generación', D.length?Math.round(D.filter(x=>x.gen!=='—').length*100/D.length)+'%':'—')+
+    (()=>{const hoy=new Date().getFullYear();
+      const kma=D.filter(x=>x.km&&x.anio&&hoy-x.anio>=1).map(x=>Math.round(x.km/(hoy-x.anio)));
+      return kpi('Km/año del parque', kma.length?f0(biMediana(kma)):'—','intensidad de uso (mediana)');})();
+  // distribución por año
+  const porAnio={};
+  D.forEach(x=>{if(x.anio)porAnio[x.anio]=(porAnio[x.anio]||0)+1;});
+  const anios=Object.entries(porAnio).sort((a,b)=>b[0]-a[0]).slice(0,18);
+  const medAnio={};
+  anios.forEach(([a])=>{medAnio[a]=biMediana(D.filter(x=>x.anio==a&&x.precio).map(x=>x.precio));});
+  const maxN=Math.max(...anios.map(p=>p[1]),1);
+  const totAn=anios.reduce((s,p)=>s+p[1],0)||1;
+  document.getElementById('bi-anios').innerHTML=
+    `<div style="display:flex;gap:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">
+      <div style="min-width:40px;text-align:right">Año</div><div style="flex:1"></div>
+      <div style="min-width:56px">Avisos</div><div style="min-width:36px">%</div>
+      <div style="min-width:84px">Precio med.</div></div>`
+    +anios.map(([a,n])=>`
+    <div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:11px">
+      <div style="min-width:40px;text-align:right;color:var(--muted)">${a}</div>
+      <div style="flex:1;background:var(--line);border-radius:4px;height:14px"><div style="width:${Math.round(n*100/maxN)}%;background:var(--signal,#3b82f6);height:14px;border-radius:4px"></div></div>
+      <div style="min-width:56px">${n.toLocaleString('es-CL')}</div>
+      <div style="min-width:36px;color:var(--muted)">${Math.round(n*100/totAn)}%</div>
+      <div style="min-width:84px;color:var(--muted)" title="precio mediano del año (curva de depreciación)">${medAnio[a]?fM(medAnio[a]):''}</div></div>`).join('');
+  // antigüedad
+  const cortes=[['0-7 d',0,7],['8-15 d',8,15],['16-30 d',16,30],['31-60 d',31,60],['61+ d',61,1e9]];
+  biBarras(document.getElementById('bi-antig'),
+    cortes.map(([lab,d0,d1])=>[lab, dias.filter(d=>d>=d0&&d<=d1).length]));
+  // composición técnica: combustible / tracción / caja son dimensiones
+  // INDEPENDIENTES — cada bloque suma su propio 100%
+  (function(){
+    const bloque=(titulo,labs,mayus)=>{
+      const filas=labs.map(l=>[l, D.filter(x=>x.ver.includes(l)).length]).filter(p=>p[1]);
+      const tot=filas.reduce((s,p)=>s+p[1],0)||1;
+      if(!filas.length) return '';
+      const max=Math.max(...filas.map(p=>p[1]),1);
+      return `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 3px">${titulo}</div>`
+        +filas.map(([lab,n])=>`
+        <div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:11px">
+          <div style="min-width:70px;text-align:right;color:var(--muted)">${mayus?lab.trim().toUpperCase():lab}</div>
+          <div style="flex:1;background:var(--line);border-radius:4px;height:12px"><div style="width:${Math.round(n*100/max)}%;background:var(--signal,#3b82f6);height:12px;border-radius:4px"></div></div>
+          <div style="min-width:60px">${n.toLocaleString('es-CL')}</div>
+          <div style="min-width:34px;color:var(--muted)">${Math.round(n*100/tot)}%</div></div>`).join('');
+    };
+    document.getElementById('bi-comp').innerHTML=
+      bloque('Combustible',['diesel','bencina','hibrido','gas'],false)
+      +bloque('Tracción',['4x4','4x2'],false)
+      +bloque('Caja',[' at',' mt'],true);
+  })();
+  // bajas de precio de la última comparación (filtradas por marca/modelo)
+  (function(){
+    const cont=document.getElementById('bi-bajas'); if(!cont) return;
+    const R=(DATA.rotacion||{});
+    let bajas=R.bajas_precio||[];
+    const fMa=document.getElementById('bi-marca').value.toLowerCase();
+    const fMo=document.getElementById('bi-modelo').value.toLowerCase();
+    if(fMa) bajas=bajas.filter(x=>(x.marca||'').toLowerCase()===fMa);
+    if(fMo) bajas=bajas.filter(x=>(x.modelo||'').toLowerCase()===fMo);
+    if(!bajas.length){cont.innerHTML='<span style="color:var(--muted);font-size:12px">Sin bajas registradas en la última comparación (o sin datos de rotación aún: requiere dos capturas completas).</span>';return;}
+    // bajas >50% suelen ser corrección de un precio mal tipeado, no oferta
+    const reales=bajas.filter(x=>x.pct==null||x.pct>-50).sort((a,b)=>(a.pct??0)-(b.pct??0));
+    const sospechosas=bajas.filter(x=>x.pct!=null&&x.pct<=-50);
+    bajas=[...reales,...sospechosas];
+    cont.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px"><tbody>${bajas.slice(0,40).map(x=>`
+      <tr style="border-top:1px solid var(--line)${(x.pct!=null&&x.pct<=-50)?';opacity:.55':''}">
+        <td style="padding:3px 6px">${x.marca} ${x.modelo}${x.año?' '+x.año:''}${(x.pct!=null&&x.pct<=-50)?' <span style="font-size:10px;color:var(--muted)">(corrección de precio errado?)</span>':''}</td>
+        <td style="padding:3px 6px" class="num" style="color:var(--muted)">${fM(x.antes)}</td>
+        <td style="padding:3px 6px" class="num"><b>${fM(x.ahora)}</b></td>
+        <td style="padding:3px 6px" class="num" style="color:var(--good,#16a34a)">${x.pct!=null?x.pct+'%':''}</td>
+        <td style="padding:3px 6px">${x.url?`<a target="_blank" rel="noopener" href="${x.url}" style="color:var(--signal,#3b82f6)">ver</a>`:''}</td>
+      </tr>`).join('')}</tbody></table>`;
+  })();
+  // canales: share + prima del canal formal
+  const nPart=D.filter(x=>x.vend==='Particular').length;
+  const nAuto=D.filter(x=>x.vend==='Automotora').length;
+  const pPart=biMediana(D.filter(x=>x.vend==='Particular'&&x.precio).map(x=>x.precio));
+  const pAuto=biMediana(D.filter(x=>x.vend==='Automotora'&&x.precio).map(x=>x.precio));
+  const prima=(pPart&&pAuto)?Math.round((pAuto-pPart)*100/pPart):null;
+  const totC=nPart+nAuto;
+  document.getElementById('bi-canales').innerHTML=totC?`
+    <div style="font-size:12px;line-height:2">
+      Particular: <b>${nPart.toLocaleString('es-CL')}</b> avisos (${Math.round(nPart*100/totC)}%) · mediana ${pPart?fM(pPart):'—'}<br>
+      Automotora: <b>${nAuto.toLocaleString('es-CL')}</b> avisos (${Math.round(nAuto*100/totC)}%) · mediana ${pAuto?fM(pAuto):'—'}<br>
+      ${prima!==null?`Prima del canal formal: <b>${prima>0?'+':''}${prima}%</b>`:''}
+    </div>`:'<span style="color:var(--muted);font-size:12px">sin datos de canal en el segmento</span>';
+  // cruce rápido
+  const dim=document.getElementById('bi-dim').value, met=document.getElementById('bi-met').value;
+  const grupos={};
+  D.forEach(x=>{const k=x[dim]||'—';(grupos[k]=grupos[k]||[]).push(x);});
+  let filas=Object.entries(grupos).map(([k,arr])=>{
+    let v;
+    if(met==='n')v=arr.length;
+    else if(met==='pmed')v=biMediana(arr.map(x=>x.precio).filter(Boolean));
+    else if(met==='kmed')v=biMediana(arr.map(x=>x.km).filter(Boolean));
+    else v=biMediana(arr.map(x=>x.dias).filter(d=>d>=0));
+    return [k,v,arr.length];
+  }).sort((a,b)=>b[1]-a[1]).slice(0,40);
+  const totCruce=D.length||1;
+  const fmt=met==='pmed'?fM:(met==='kmed'?(v=>f0(v)):(v=>v.toLocaleString('es-CL')+(met==='dmed'?' d':'')));
+  document.getElementById('bi-cruce').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tbody>${filas.map(([k,v,n])=>`<tr style="border-top:1px solid var(--line)">
+      <td style="padding:3px 8px">${k}</td>
+      <td style="padding:3px 8px" class="num"><b>${fmt(v)}</b></td>
+      <td style="padding:3px 8px;color:var(--muted)" class="num">${n} av. · ${Math.round(n*100/totCruce)}%</td></tr>`).join('')}</tbody></table>`;
+};
+// inicializar al entrar a la pestaña
+document.querySelectorAll('.tab').forEach(b=>{
+  if(b.dataset.view==='bi') b.addEventListener('click',()=>setTimeout(biInit,50));
+});
+
+dbInit();
+
+gmInit();
+
+vmInit();
+
+const depCambios = {};
+function renderDepuracion(){
+  const cuerpo=document.getElementById('dep-body'); if(!cuerpo) return;
+  const dep=DATA.depuracion||[];
+  const q=(document.getElementById('dep-buscar').value||'').toLowerCase().trim();
+  const f=document.getElementById('dep-filtro').value;
+  let filas=dep.filter(d=>{
+    if(q && !((d.marca+' '+d.modelo).toLowerCase().includes(q))) return false;
+    if(f==='sin' && d.firma) return false;
+    if(f==='pend' && d.canonica) return false;
+    if(f==='rev' && !d.revisar) return false;
+    return true;
+  }).slice(0,400);
+  cuerpo.innerHTML=filas.map(d=>`
+    <tr${d.firma?'':' style="opacity:.75"'}>
+      <td><b>${d.marca} ${d.modelo}</b>${d.revisar?' <span title="Precios demasiado dispersos dentro del mismo año: probablemente conviven versiones distintas bajo esta firma" style="cursor:help">(!)</span>':''}</td>
+      <td>${d.gen||'—'}</td>
+      <td class="mono" title="Texto vendedor: ${(d.ejemplos||'—').replace(/"/g,'&quot;')}${d.specs?'&#10;Versión OFICIAL (specs): '+d.specs.replace(/"/g,'&quot;'):''}">${d.firma||'(sin firma)'}${d.specs?' 📋':''} <span style="color:var(--muted);cursor:help">ⓘ</span></td>
+      <td class="num">${f0(d.avisos)}</td>
+      <td class="num">${fM(d.precio_mediano)}</td>
+      <td>${d.años}</td>
+      <td><input type="text" data-clave="${d.clave}" class="dep-in" value="${(d.canonica||d.sugerida||'').replace(/"/g,'&quot;')}"
+           style="width:100%;padding:5px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:var(--panel)"
+           onchange="depCambios[this.dataset.clave]=depCambios[this.dataset.clave]||{};depCambios[this.dataset.clave].canonica=this.value">${d.precal?`
+        <div style="margin-top:4px;font-size:11px;color:${d.precal.conf==='alta'?'var(--good,#3a9d5d)':'var(--muted)'}">
+          🎯 ${d.precal.version.replace(/</g,'&lt;')}
+          <span style="color:var(--muted)">(${d.precal.conf}: ${d.precal.senales})</span>
+          <button class="comp-btn" style="font-size:10px;padding:1px 6px" title="Usar esta versión como canónica"
+            onclick="usarPrecal('${d.clave}', this)">Usar</button>
+        </div>`:''}</td>
+      <td style="text-align:center"><input type="checkbox" data-clave="${d.clave}" ${d.excluir?'checked':''}
+           onchange="depCambios[this.dataset.clave]=depCambios[this.dataset.clave]||{};depCambios[this.dataset.clave].excluir=this.checked"></td>
+    </tr>`).join('');
+  document.getElementById('dep-nota').textContent = dep.length
+    ? `${dep.length} combinaciones con 3+ avisos (mostrando ${filas.length}). ⓘ = pasá el mouse por la firma para ver el texto real del vendedor.`
+    : 'Todavía no hay sugerencias: se generan en el próximo recálculo del motor.';
+}
+const TAS = (DATA.tasador||[]);
+function tsInit(){
+  const mas=[...new Set(TAS.map(x=>x.ma))].sort();
+  document.getElementById('ts-ma').innerHTML='<option value="">—</option>'+mas.map(m=>`<option>${m}</option>`).join('');
+}
+function tsMarca(){
+  const ma=document.getElementById('ts-ma').value;
+  const mos=[...new Set(TAS.filter(x=>x.ma===ma).map(x=>x.mo))].sort();
+  document.getElementById('ts-mo').innerHTML='<option value="">—</option>'+mos.map(m=>`<option>${m}</option>`).join('');
+  document.getElementById('ts-ver').innerHTML='';document.getElementById('ts-año').innerHTML='';
+}
+function tsModelo(){
+  const ma=document.getElementById('ts-ma').value, mo=document.getElementById('ts-mo').value;
+  const del=TAS.filter(x=>x.ma===ma&&x.mo===mo&&x.nivel!=='modelo');
+  const vers={};
+  del.forEach(x=>{const k=x.nivel+'§'+x.gen+'§'+x.ver; vers[k]=(vers[k]||0)+x.n;});
+  const ops=Object.entries(vers).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{
+    const [niv,gen,ver]=k.split('§');
+    const tag=niv==='oficial'?'📋 ':'';
+    return `<option value="${k.replace(/"/g,'&quot;')}">${tag}${ver}${gen&&gen!=='nan'?' ['+gen+']':''} (${n})</option>`;});
+  document.getElementById('ts-ver').innerHTML='<option value="">— solo modelo —</option>'+ops.join('');
+  tsVersion();
+}
+function tsVersion(){
+  const ma=document.getElementById('ts-ma').value, mo=document.getElementById('ts-mo').value;
+  const vsel=document.getElementById('ts-ver').value;
+  let filas;
+  if(vsel){const [niv,gen,ver]=vsel.split('§');
+    filas=TAS.filter(x=>x.ma===ma&&x.mo===mo&&x.nivel===niv&&String(x.gen)===gen&&x.ver===ver);}
+  else filas=TAS.filter(x=>x.ma===ma&&x.mo===mo&&x.nivel==='modelo');
+  const años=[...new Set(filas.map(x=>x.año))].sort((a,b)=>b-a);
+  document.getElementById('ts-año').innerHTML=años.map(a=>`<option>${a}</option>`).join('');
+}
+function tsTasar(){
+  const ma=document.getElementById('ts-ma').value, mo=document.getElementById('ts-mo').value;
+  const vsel=document.getElementById('ts-ver').value;
+  const año=parseInt(document.getElementById('ts-año').value);
+  const km=parseInt(document.getElementById('ts-km').value)||0;
+  const out=document.getElementById('ts-out');
+  if(!ma||!mo||!año){out.innerHTML='<p class="lead">Elegí al menos marca, modelo y año.</p>';return;}
+  let fila=null, nivelTxt='';
+  if(vsel){const [niv,gen,ver]=vsel.split('§');
+    fila=TAS.find(x=>x.ma===ma&&x.mo===mo&&x.nivel===niv&&String(x.gen)===gen&&x.ver===ver&&x.año===año);
+    nivelTxt=niv==='oficial'?'versión OFICIAL (ficha técnica)':'versión del texto de avisos';}
+  if(!fila){fila=TAS.find(x=>x.ma===ma&&x.mo===mo&&x.nivel==='modelo'&&x.año===año);
+    if(fila&&!nivelTxt)nivelTxt='modelo completo (sin distinguir versión)';
+    else if(fila&&vsel)nivelTxt+=' — sin datos de ese año en la versión, tasado a nivel modelo';}
+  if(!fila){out.innerHTML='<p class="lead">Sin datos suficientes para esa combinación. Probá otro año o solo el modelo.</p>';return;}
+  let kmNota='';
+  if(km&&fila.km50){
+    const d=(km-fila.km50)/fila.km50;
+    if(d>0.25)kmNota=`(!) Tu km (${f0(km)}) está ${Math.round(d*100)}% sobre la mediana del grupo (${f0(fila.km50)}): apuntá al rango bajo o menos.`;
+    else if(d<-0.25)kmNota=`✓ Tu km (${f0(km)}) está ${Math.round(-d*100)}% bajo la mediana (${f0(fila.km50)}): puede justificar el rango alto.`;
+    else kmNota=`Km en línea con la mediana del grupo (${f0(fila.km50)}).`;
+  }
+  out.innerHTML=`<div class="card" style="max-width:560px;padding:18px">
+    <div style="font-size:13px;color:var(--muted)">${ma} ${mo} ${vsel?vsel.split('§')[2]:''} ${año}</div>
+    <div style="font-size:30px;font-weight:700;margin:6px 0">${fM(fila.p50)}</div>
+    <div style="font-size:13px">Rango de mercado: <b>${fM(fila.p25)}</b> – <b>${fM(fila.p75)}</b></div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">Base: ${fila.n} avisos · Nivel: ${nivelTxt}</div>
+    ${kmNota?`<div style="font-size:12px;margin-top:8px">${kmNota}</div>`:''}
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">Precios de oferta publicada en Chileautos; el precio de cierre real suele estar por debajo.</div>
+  </div>`;
+}
+function usarPrecal(clave, btn){
+  const fila=btn.closest('td');
+  const inp=fila.querySelector('input.dep-in');
+  const ver=btn.parentElement.textContent.split('(')[0].replace('🎯','').trim();
+  inp.value=ver;
+  depCambios[clave]=depCambios[clave]||{};
+  depCambios[clave].canonica=ver;
+  btn.textContent='OK';
+}
+function guardarDepuracion(btn){
+  const claves=Object.keys(depCambios);
+  const msg=document.getElementById('dep-msg');
+  if(!claves.length){ msg.textContent='sin cambios para guardar'; return; }
+  claves.forEach(k=>{ const inp=document.querySelector(`input.dep-in[data-clave="${k}"]`);
+    if(inp && depCambios[k].canonica===undefined) depCambios[k].canonica=inp.value; });
+  fetch(`${CTL_URL}/depurar`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(depCambios)})
+    .then(r=>{ if(!r.ok) throw 0;
+      msg.textContent=`✓ ${claves.length} correcciones guardadas — se aplican en el próximo recálculo`;
+      Object.keys(depCambios).forEach(k=>delete depCambios[k]); })
+    .catch(()=>{ msg.textContent='no pude guardar: ¿está corriendo el panel (DASHBOARD.bat)?'; });
+}
+if(document.getElementById('dep-body')){
+  renderDepuracion();
+  document.getElementById('dep-buscar').addEventListener('input',renderDepuracion);
+  document.getElementById('dep-filtro').addEventListener('change',renderDepuracion);
+}
+
+// Aviso discreto si el panel no está activo (los botones igual quedan visibles)
+fetch(`${CTL_URL}/ping`).catch(()=>ctlMsg('Botones inactivos: abrí PANEL.bat para habilitarlos.',''));
+cargarRelleno();
+</script>
+</body>
+</html>

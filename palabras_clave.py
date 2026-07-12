@@ -31,6 +31,9 @@ DANIADO = [
     "para repuesto", "repuestos", "tal cual esta", "tal como esta",
     "no rola", "no se mueve", "para restaurar", "proyecto",
     "volcado", "inundado", "quemado", "robado y recuperado",
+    "trizadura", "trizado", "falla electrica", "falla en la caja",
+    "se debe reparar", "computador malo", "perdida total",
+    "comprado en remate", "vehiculo de aseguradora", "viene de aseguradora",
 ]
 
 # --- PROBLEMA LEGAL / DOCUMENTAL (no se puede transferir facil o tiene deuda) ---
@@ -48,12 +51,17 @@ PROBLEMA_LEGAL = [
 ORIGEN_ESPECIAL = [
     "internado", "internacion", "zona franca", "tributado", "sin tributar",
     "importado", "recien internado", "iquique", "zofri",
+    "no liberada", "no liberado", "franquicia", "aduana", "cupo de discapacidad",
 ]
 
 # --- ESTADO POSITIVO ---
 IMPECABLE = [
-    "impecable", "excelente estado", "muy buen estado", "como nuevo",
+    "impecable", "excelente estado", "muy buen estado", "como nuevo", "como nueva",
     "estado de coleccion", "perfecto estado", "estado impecable",
+    "a toda prueba", "cuidado maniatico", "impeque", "flamante",
+    "cero detalle", "sin detalles", "practicamente nuevo", "practicamente nueva",
+    "todo original", "nunca chocado", "nunca chocada", "jamas chocado",
+    "jamas chocada", "sin choques",
 ]
 
 # --- PROCEDENCIA / DUEÑOS ---
@@ -87,6 +95,60 @@ FACILIDADES = [
     "garantia", "pie desde", "cuotas",
 ]
 
+# --- VENTA URGENTE (vendedor apurado = precio negociable; oro para comprar) ---
+# Ampliada con frases REALES de avisos chilenos (minadas de la BBDD)
+VENTA_URGENTE = [
+    "urge", "urgente", "urge vender", "vendo urgente", "necesito vender",
+    "por viaje", "me voy del pais", "viaje al extranjero", "salida del pais",
+    "por motivo de viaje", "no viven en chile", "fui a vivir a", "me voy a vivir",
+    "remato", "se remata", "rematado", "precio de remate",
+    "vendo hoy", "solo por hoy", "vendo ya", "rapida venta", "venta rapida",
+    "por apuro", "apurado", "necesito el dinero", "necesito la plata",
+    "urgencia economica", "motivos economicos", "por necesidad",
+    "rebajada", "rebajado", "ultimo precio",
+]
+
+# --- PRECIO CONDICIONADO (bandera ROJA para comprador contado: el precio
+#     publicado solo vale con financiamiento; al contado es MAS caro) ---
+PRECIO_CONDICIONADO = [
+    "bono de financiamiento", "con bono financiamiento", "bono financiamiento",
+    "solo con financiamiento", "valido con financiamiento",
+    "valido solo con financiamiento", "corresponde a precio con",
+    "precio con financiamiento", "valor financiamiento",
+    "precio credito", "valor publicado corresponde", "precio publicado corresponde",
+    "exclusivo financiamiento", "con financiamiento gestionado",
+    "credito forum", "producto chevy siempre",
+]
+
+# --- PRECIO MAS IVA (el precio real es ~19% mayor) ---
+PRECIO_MAS_IVA = [
+    "mas iva", "se le suma iva", "valores mas iva", "afecta a iva",
+    "factura afecta", "valor referencial mas iva",
+]
+
+# --- MODIFICADO (alteraciones mecanicas: riesgo en revision tecnica/durabilidad) ---
+MODIFICADO = [
+    "dpf eliminado", "dpf fue eliminado", "sin dpf",
+    "adblue desconectado", "ad-blue desconectado", "adblue eliminado",
+    "conversion a gas", "convertido a gas", "kit glp",
+    "reprogramado", "stage 1", "stage 2",
+]
+
+# --- TRATO DIRECTO (vende el dueño; rechaza automotoras) ---
+TRATO_DIRECTO = [
+    "no automotoras", "no llamar automotoras", "favor no llamar automotoras",
+    "vende su dueno", "vende directamente", "venta directa", "trato directo",
+    "sin comision", "sin concesionario", "contacto con el dueno",
+]
+
+# --- PRECIO NEGOCIABLE (abre la puerta a ofertar bajo) ---
+PRECIO_CONVERSABLE = [
+    "conversable", "negociable", "precio a convenir",
+    "se conversa", "escucho ofertas", "se escuchan ofertas", "oferta razonable",
+    "ofertas razonables", "atento a ofertas", "acepta oferta", "se acepta oferta",
+    "propuestas serias", "flexible en el precio",
+]
+
 # --- USO ---
 POCO_USO = [
     "poco uso", "bajo kilometraje", "uso de carretera", "solo carretera",
@@ -106,8 +168,14 @@ CATEGORIAS = {
     "listo_transferir": LISTO_TRANSFERIR,
     "facilidades": FACILIDADES,
     "poco_uso": POCO_USO,
+    "venta_urgente": VENTA_URGENTE,
+    "precio_conversable": PRECIO_CONVERSABLE,
+    "precio_condicionado": PRECIO_CONDICIONADO,
+    "precio_mas_iva": PRECIO_MAS_IVA,
+    "modificado": MODIFICADO,
+    "trato_directo": TRATO_DIRECTO,
 }
 
 # Palabras que, si aparecen ANTES de una señal negativa, la anulan.
 # Ej: "no chocado", "sin detalles", "nunca chocado" -> NO marcar como daniado.
-NEGADORES = ["no", "sin", "nunca", "jamas", "libre de", "cero"]
+NEGADORES = ["no", "sin", "nunca", "jamas", "libre de", "cero", "poco"]

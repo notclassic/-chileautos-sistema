@@ -61,12 +61,30 @@ def extract_whatsapp_number_from_url(url: str):
     if not url:
         return None
 
-    # Caso 1: viene directo como https://wa.me/56229949429?text=...
+    # Caso NUEVO (2026): el numero del vendedor viene como dealerNumber=...
+    # dentro de la postBackUrl del boton "whatsapp-click".
+    # Puede venir de varias formas:
+    #   - Automotora: dealerNumber=+56228698448  (completo)
+    #   - Particular: dealerNumber=9%208209%200285  (celular con espacios %20, sin 56)
+    url_dec = urllib.parse.unquote(url)
+    match = re.search(r"dealerNumber=([^&]+)", url_dec)
+    if match:
+        # Quedarnos solo con digitos y un eventual +
+        num = re.sub(r"[^\d+]", "", match.group(1))
+        if num:
+            if num.startswith("+"):
+                return num
+            if num.startswith("56"):
+                return "+" + num
+            # Numero chileno sin prefijo internacional (celular 9..., fijo 2...)
+            return "+56" + num
+
+    # Caso 1 (formato viejo): viene directo como https://wa.me/56229949429?text=...
     match = re.search(r"wa\.me/(\d+)", url)
     if match:
         return "+" + match.group(1)
 
-    # Caso 2: viene dentro de targetUrl=...
+    # Caso 2 (formato viejo): viene dentro de targetUrl=...
     try:
         parsed = urlparse(url)
         query = parse_qs(parsed.query)

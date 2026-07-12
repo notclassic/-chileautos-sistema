@@ -1,0 +1,411 @@
+# -*- coding: utf-8 -*-
+"""
+actualizar_incremental.py — Actualización diaria SIN rebajar toda la base
+=========================================================================
+
+Idea (la que propuso Maria):
+  1. Bajar solo el CATÁLOGO liviano (sin detalles): marca, modelo, precio, id...
+  2. Compararlo contra lo que ya sabemos (archivo de estado acumulado).
+  3. Bajar teléfono + especificaciones SOLO de los avisos nuevos de verdad.
+  4. A los que ya conocíamos, reusarles teléfono/specs y solo mirar si cambió
+     el precio.
+  5. Marcar como "probablemente vendido" solo a los que llevan varias corridas
+     sin aparecer (no por faltar un solo día).
+
+Por qué el archivo de estado:
+  El scrape del catálogo NO trae exactamente los mismos avisos cada vez (se
+  comprobó: entre dos bases con 4 días de diferencia "desaparecían" 11.414
+  avisos, demasiados para ser ventas reales). Por eso NO se puede tomar
+  "no apareció hoy" como "se vendió". El estado acumulado aguanta esos huecos:
+  un aviso que se cae un día y vuelve al otro NO se re-descarga ni se da por
+  vendido.
+
+Archivos que usa/crea:
+  - estado_avisos.csv        <- memoria acumulada por aviso (se crea solo)
+  - especificaciones.csv     <- specs por aviso (compartido con bajar_especificaciones.py)
+  - base_FECHA.xlsx          <- la base del día, como siempre
+
+Requiere: pandas, openpyxl, curl_cffi, beautifulsoup4, y los módulos del sistema
+(scrapper.py, telefono.py, especificaciones.py).
+"""
+
+import asyncio
+import os
+import re
+import sys
+import csv
+import time
+from datetime import datetime, date
+
+import pandas as pd
+
+# --- Config ---
+ESTADO = "estado_avisos.csv"
+ESPECIFICACIONES = "especificaciones.csv"
+DIAS_PARA_VENDIDO = 7      # sin verlo estos días -> se marca probablemente vendido
+NUM_WORKERS = 12
+
+# SPECS desactivadas por ahora: las páginas de detalle están detrás del muro
+# 403 de Datadome (corrida del 03-07: 100% bloqueado). Cuando
+# diagnostico_specs.py confirme la vía, poner True (y evaluar menos workers).
+BAJAR_SPECS = False
+
+# TELÉFONOS de los avisos nuevos: apagado por defecto (decisión 07-07-2026:
+# por ahora no se necesitan y son la mayor parte de los pedidos a Chileautos).
+# Se prende por corrida con:  python actualizar_incremental.py --telefonos
+BAJAR_TELEFONOS = False
+
+# Para PRUEBA: limita cuántos avisos nuevos se procesan por corrida.
+# Poné un número (ej. 200) para probar rápido la cadena completa.
+# Poné None para procesar TODOS los nuevos (uso normal).
+LIMITE_NUEVOS = None
+
+# Campos que guardamos en el estado por cada aviso.
+# Incluye los que el motor necesita para calcular (kilometraje para ajustar
+# precio, combustible/traccion/transmision para agrupar). Vienen gratis del
+# catálogo, así que se guardan sin costo extra.
+CAMPOS_ESTADO = [
+    "id", "url", "marca", "modelo", "version", "año", "entidad",
+    "traccion", "condicion", "kilometraje", "transmision", "combustible", "moneda",
+    "precio", "precio_previo", "primera_vez", "ultima_vez", "veces_visto",
+    "activo", "telefono", "whatsapp",
+]
+
+
+def id_de_url(u):
+    m = re.search(r'/((?:CP|CL|GI)-AD-\d+)', str(u))
+    return m.group(1) if m else str(u).strip()
+
+
+def hoy():
+    return date.today().isoformat()
+
+
+# ---------------------------------------------------------------------------
+# ESTADO: cargar / guardar
+# ---------------------------------------------------------------------------
+def cargar_estado():
+    """Devuelve dict id -> fila(dict). Vacío si es la primera vez."""
+    if not os.path.exists(ESTADO):
+        return {}
+    estado = {}
+    with open(ESTADO, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            estado[row["id"]] = row
+    return estado
+
+
+def guardar_estado(estado):
+    # Escritura ATÓMICA: primero a un .tmp y después renombrar. Así nadie
+    # puede leer un estado a medio escribir (causa del incidente del 08-07).
+    tmp = ESTADO + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=CAMPOS_ESTADO)
+        w.writeheader()
+        for fila in estado.values():
+            w.writerow({k: fila.get(k, "") for k in CAMPOS_ESTADO})
+    os.replace(tmp, ESTADO)
+
+
+def dias_entre(fecha_iso, hasta_iso):
+    try:
+        d1 = datetime.fromisoformat(fecha_iso).date()
+        d2 = datetime.fromisoformat(hasta_iso).date()
+        return (d2 - d1).days
+    except Exception:
+        return 0
+
+
+# ---------------------------------------------------------------------------
+# DIFF: comparar catálogo de hoy contra el estado (lógica pura, testeable)
+# ---------------------------------------------------------------------------
+def diff_catalogo(catalogo_hoy, estado):
+    """
+    catalogo_hoy: lista de dicts con al menos id/url/precio + campos de catálogo.
+    estado: dict id -> fila previa.
+
+    Devuelve:
+      nuevos:   lista de dicts (avisos nunca vistos -> hay que bajar detalles)
+      cambios_precio: lista de (id, precio_viejo, precio_nuevo)
+      vendidos: lista de ids marcados probablemente vendidos en esta corrida
+      estado:   el estado ACTUALIZADO (con presencia y precios al día)
+    """
+    hoy_str = hoy()
+    ids_hoy = set()
+    nuevos = []
+    cambios_precio = []
+
+    for v in catalogo_hoy:
+        i = v["id"]
+        ids_hoy.add(i)
+        precio_nuevo = v.get("precio")
+
+        if i not in estado:
+            # Nunca visto -> nuevo de verdad
+            estado[i] = {
+                "id": i, "url": v.get("url", ""),
+                "marca": v.get("marca", ""), "modelo": v.get("modelo", ""),
+                "version": v.get("version", ""), "año": v.get("año", ""),
+                "entidad": v.get("entidad", ""),
+                "traccion": v.get("traccion", ""), "condicion": v.get("condicion", ""),
+                "kilometraje": v.get("kilometraje", ""),
+                "transmision": v.get("transmision", ""),
+                "combustible": v.get("combustible", ""), "moneda": v.get("moneda", ""),
+                "precio": precio_nuevo, "precio_previo": "",
+                "primera_vez": hoy_str, "ultima_vez": hoy_str,
+                "veces_visto": 1, "activo": 1,
+                "telefono": "", "whatsapp": "",
+            }
+            nuevos.append(v)
+        else:
+            fila = estado[i]
+            precio_viejo = fila.get("precio")
+            # ¿cambió el precio?
+            try:
+                if precio_viejo not in ("", None) and float(precio_viejo) != float(precio_nuevo):
+                    cambios_precio.append((i, precio_viejo, precio_nuevo))
+                    fila["precio_previo"] = precio_viejo
+            except (ValueError, TypeError):
+                pass
+            fila["precio"] = precio_nuevo
+            fila["ultima_vez"] = hoy_str
+            fila["veces_visto"] = int(fila.get("veces_visto", 0) or 0) + 1
+            fila["activo"] = 1
+
+    # Avisos del estado que NO aparecieron hoy: marcar vendido solo si llevan
+    # muchos días sin verse (no por faltar una sola vez).
+    vendidos = []
+    for i, fila in estado.items():
+        if i in ids_hoy:
+            continue
+        if dias_entre(fila.get("ultima_vez", hoy_str), hoy_str) >= DIAS_PARA_VENDIDO:
+            if str(fila.get("activo", 1)) != "0":
+                fila["activo"] = 0
+                vendidos.append(i)
+
+    return nuevos, cambios_precio, vendidos, estado
+
+
+# ---------------------------------------------------------------------------
+# BAJAR DETALLES de los nuevos (teléfono + especificaciones)
+# ---------------------------------------------------------------------------
+async def bajar_detalles_nuevos(nuevos, estado, bajar_telefonos=False):
+    """Para cada aviso nuevo baja teléfono (si está habilitado) y specs
+    (si BAJAR_SPECS). Guarda specs en el CSV."""
+    if not nuevos:
+        print("No hay avisos nuevos: no se baja ningún detalle.")
+        return
+
+    from curl_cffi.requests import AsyncSession
+    from telefono import extract_phone_fast
+
+    f_specs = w_specs = None
+    if BAJAR_SPECS:
+        from especificaciones import extract_specs, COLUMNAS_SPECS
+        specs_existe = os.path.exists(ESPECIFICACIONES)
+        f_specs = open(ESPECIFICACIONES, "a", encoding="utf-8", newline="")
+        w_specs = csv.writer(f_specs)
+        if not specs_existe:
+            w_specs.writerow(["id", "url"] + COLUMNAS_SPECS)
+
+    cola = asyncio.Queue()
+    for v in nuevos:
+        cola.put_nowait(v)
+
+    total = len(nuevos)
+    prog = {"n": 0, "tel": 0, "spec": 0, "t0": time.time()}
+
+    async def trabajador():
+        async with AsyncSession() as session:
+            while True:
+                try:
+                    v = cola.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                i = v["id"]
+                url = v.get("url", "")
+                # teléfono (solo si se pidió con --telefonos)
+                if bajar_telefonos:
+                    try:
+                        contacts = await extract_phone_fast(url, session)
+                        if contacts:
+                            estado[i]["telefono"] = contacts.get("telefono") or "No disponible"
+                            estado[i]["whatsapp"] = contacts.get("whatsapp") or "No disponible"
+                            if estado[i]["telefono"] != "No disponible" or estado[i]["whatsapp"] != "No disponible":
+                                prog["tel"] += 1
+                    except Exception:
+                        pass
+                # especificaciones (solo si BAJAR_SPECS está activado)
+                if BAJAR_SPECS:
+                    try:
+                        specs = await extract_specs(url, session)
+                        if specs:
+                            w_specs.writerow([i, url] + [specs.get(c, "") for c in COLUMNAS_SPECS])
+                            prog["spec"] += 1
+                    except Exception:
+                        pass
+
+                cola.task_done()
+                prog["n"] += 1
+                if prog["n"] % 20 == 0 or prog["n"] == total:
+                    el = time.time() - prog["t0"]
+                    vel = prog["n"] / el if el else 0
+                    eta = time.strftime("%H:%M:%S", time.gmtime((total - prog["n"]) / vel)) if vel else "?"
+                    sys.stdout.write(f"\rDetalles nuevos: {prog['n']}/{total} "
+                                     f"(tel {prog['tel']}, specs {prog['spec']}) | ETA {eta}   ")
+                    sys.stdout.flush()
+
+    await asyncio.gather(*[trabajador() for _ in range(NUM_WORKERS)])
+    if f_specs:
+        f_specs.close()
+    print()
+
+
+# ---------------------------------------------------------------------------
+# ORQUESTADOR
+# ---------------------------------------------------------------------------
+def exportar_base_diaria(estado):
+    """Escribe capturas/Chileautos FECHA.xlsx con los avisos ACTIVOS del estado,
+    en el formato de columnas que espera el motor. Si ya existe una base de
+    hoy, la respalda en capturas/anteriores/ con la hora, sin pisarla."""
+    filas = []
+    marca_tiempo = datetime.now().strftime("%d-%m-%Y %H:%M")
+    for f in estado.values():
+        if str(f.get("activo", 1)) == "0":
+            continue
+        filas.append({
+            "fecha": marca_tiempo,
+            "marca": f.get("marca", ""), "modelo": f.get("modelo", ""),
+            "version": f.get("version", ""), "año": f.get("año", ""),
+            "traccion": f.get("traccion", ""), "condicion": f.get("condicion", ""),
+            "precio": f.get("precio", ""), "kilometraje": f.get("kilometraje", ""),
+            "transmision": f.get("transmision", ""), "combustible": f.get("combustible", ""),
+            "id": f.get("id", ""), "moneda": f.get("moneda", ""),
+            "entidad": f.get("entidad", ""), "Enlace Web": f.get("url", ""),
+            "telefono": f.get("telefono", "") or "No disponible",
+            "whatsapp": f.get("whatsapp", "") or "No disponible",
+            "nombre_whatsapp": "No disponible",
+        })
+    if not filas:
+        print("Estado sin avisos activos: no se exporta base.")
+        return
+    carpeta = "capturas"
+    os.makedirs(carpeta, exist_ok=True)
+    fecha_str = date.today().isoformat()
+    mitad = "AM" if datetime.now().hour < 12 else "PM"
+    ruta = os.path.join(carpeta, f"Chileautos {fecha_str} {mitad}.xlsx")
+    # AM y PM conviven; el motor usa el último de cada fecha. Tercera corrida
+    # en la misma mitad del día: se agrega la hora al nombre.
+    if os.path.exists(ruta):
+        hora = datetime.now().strftime("%H-%M")
+        ruta = os.path.join(carpeta, f"Chileautos {fecha_str} {mitad} ({hora}).xlsx")
+    pd.DataFrame(filas).to_excel(ruta, index=False)
+    print(f"Base del día exportada: {ruta} ({len(filas)} avisos activos).")
+
+
+def main():
+    print("=== ACTUALIZACIÓN INCREMENTAL ===\n")
+
+    # 1. Catálogo liviano de hoy (reusa el scraper existente, sin detalles)
+    from scrapper import obtener_productos_con_sesion
+    print("Bajando catálogo del día (liviano, sin detalles)...")
+    productos = obtener_productos_con_sesion()
+    if not productos:
+        print("No se obtuvo catálogo. Aborto.")
+        return
+
+    # normalizar: asegurar id + url en cada uno
+    catalogo = []
+    vistos = set()
+    for p in productos:
+        url = p.get("url_detalles", "")
+        i = id_de_url(url)
+        if not i or i in vistos:
+            continue
+        vistos.add(i)
+        catalogo.append({
+            "id": i, "url": url,
+            "marca": p.get("marca", ""), "modelo": p.get("modelo", ""),
+            "version": p.get("version", ""), "año": p.get("año", ""),
+            "entidad": p.get("entidad", ""), "precio": p.get("precio", ""),
+            "traccion": p.get("traccion", ""), "condicion": p.get("condicion", ""),
+            "kilometraje": p.get("kilometraje", ""),
+            "transmision": p.get("transmision", ""),
+            "combustible": p.get("combustible", ""), "moneda": p.get("moneda", ""),
+        })
+    print(f"Catálogo de hoy: {len(catalogo)} avisos únicos.\n")
+
+    # 2. Comparar contra el estado acumulado
+    estado = cargar_estado()
+    print(f"Estado previo: {len(estado)} avisos conocidos.")
+    nuevos, cambios, vendidos, estado = diff_catalogo(catalogo, estado)
+
+    print(f"  NUEVOS (detectados):            {len(nuevos)}")
+    print(f"  Cambios de precio:              {len(cambios)}")
+    print(f"  Marcados probablemente vendidos:{len(vendidos)}\n")
+
+    # Límite para PRUEBA: procesar solo los primeros N nuevos. Los demás se
+    # quitan del estado para que sigan contando como nuevos en la próxima corrida
+    # (si no, quedarían como "conocidos" sin haberles bajado nada).
+    if LIMITE_NUEVOS is not None and len(nuevos) > LIMITE_NUEVOS:
+        excedente = nuevos[LIMITE_NUEVOS:]
+        for v in excedente:
+            estado.pop(v["id"], None)
+        nuevos = nuevos[:LIMITE_NUEVOS]
+        print(f"  [MODO PRUEBA] Se procesan solo {LIMITE_NUEVOS} nuevos; "
+              f"los otros {len(excedente)} quedan pendientes para después.\n")
+
+    # 3. Bajar detalles solo de los nuevos (y solo si hay algo habilitado)
+    if nuevos and (BAJAR_TELEFONOS or BAJAR_SPECS):
+        que = " + ".join([x for x, on in [("teléfono", BAJAR_TELEFONOS), ("specs", BAJAR_SPECS)] if on])
+        print(f"Bajando {que} de {len(nuevos)} avisos nuevos...")
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(bajar_detalles_nuevos(nuevos, estado, bajar_telefonos=BAJAR_TELEFONOS))
+    elif nuevos:
+        print(f"{len(nuevos)} avisos nuevos registrados SIN bajar detalles "
+              f"(teléfonos y specs desactivados). El goteo de descripciones los cubre aparte.")
+
+    # 4. Guardar estado actualizado
+    guardar_estado(estado)
+    print(f"\nEstado guardado en {ESTADO} ({len(estado)} avisos en total).")
+
+    # 5b. Exportar la base del día (los activos) para que el motor la lea.
+    # GUARDIA: si el catálogo de hoy vio menos de la mitad de los avisos que
+    # el estado conocía (corrida cortada por bloqueo, internet caído, etc.),
+    # NO se exporta: una base amputada envenena la rotación con miles de
+    # "vendidos" falsos. El estado en sí queda bien (solo actualiza vistos).
+    activos_previos = sum(1 for f in estado.values() if str(f.get("activo", 1)) != "0")
+    if activos_previos and len(ids_hoy) < activos_previos * 0.5:
+        print(f"\n⚠ CORRIDA PARCIAL: el catálogo vio {len(ids_hoy)} avisos y el estado "
+              f"conoce {activos_previos} activos. No exporto la base del día para no "
+              f"contaminar la rotación. Cuando la IP se enfríe, corré 'Solo base' de nuevo.")
+    else:
+        exportar_base_diaria(estado)
+
+    # 5. Informe de cambios de precio (los que bajaron son los interesantes)
+    if cambios:
+        bajaron = [(i, float(a), float(b)) for i, a, b in cambios
+                   if _num(a) is not None and _num(b) is not None and float(b) < float(a)]
+        bajaron.sort(key=lambda x: (x[2] - x[1]))  # las mayores bajas primero
+        print(f"\nTop bajas de precio en esta corrida:")
+        for i, a, b in bajaron[:15]:
+            print(f"  {i}: {int(a):,} -> {int(b):,}  ({int(b-a):,})")
+
+
+def _num(x):
+    try:
+        return float(x)
+    except (ValueError, TypeError):
+        return None
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--telefonos", action="store_true",
+                    help="bajar teléfono/whatsapp de los avisos nuevos de esta corrida")
+    args = ap.parse_args()
+    if args.telefonos:
+        BAJAR_TELEFONOS = True
+    main()
