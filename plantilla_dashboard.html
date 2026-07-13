@@ -545,7 +545,7 @@
       <div class="logo">CA</div>
       <div><h1>Chileautos · Inteligencia de Mercado</h1><p id="sub">rotación · oportunidades · precio justo</p></div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div id="sello-version" style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--signal);background:rgba(0,113,227,.08);padding:2px 9px;border-radius:980px">plantilla v10 · tasador ok</div><div class="cap" id="cap"></div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div id="sello-version" style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--signal);background:rgba(0,113,227,.08);padding:2px 9px;border-radius:980px">plantilla v12 · botones</div><div class="cap" id="cap"></div></div>
   </div>
   <div class="ctlbar">
     <button class="cbtn" id="ctl-bajar" onclick="ctl('todo',this)">Bajar base</button>
@@ -892,11 +892,11 @@
   <section class="view active" id="radar">
     <p class="lead">Vehículos con precio por debajo del precio justo de su segmento (misma marca y modelo, ±3 años, ajustado por kilometraje), o con bajo uso anual.</p>
     <div class="kpis">
-      <div class="kpi gold"><div class="lbl">Oportunidades de oro</div><div class="val" id="k-oro"></div><div class="sub">precio bajo + bajo km</div></div>
-      <div class="kpi good"><div class="lbl">Bajo precio (≥15%)</div><div class="val" id="k-precio"></div><div class="sub">vs. precio justo</div></div>
-      <div class="kpi blue"><div class="lbl">Bajo kilometraje</div><div class="val" id="k-km"></div><div class="sub">&lt; 10.000 km/año</div></div>
-      <div class="kpi blue"><div class="lbl">Nuevos hoy</div><div class="val" id="kpi-nuevos">—</div><div class="sub" id="kpi-nuevos-sub">detectados hoy</div></div>
-      <div class="kpi"><div class="lbl">Avisos analizados</div><div class="val" id="k-tot"></div><div class="sub">captura más reciente</div></div>
+      <div class="kpi gold" style="cursor:pointer" title="Ver solo oportunidades de oro" onclick="kpiFilter('oro')"><div class="lbl">Oportunidades de oro</div><div class="val" id="k-oro"></div><div class="sub">precio bajo + bajo km</div></div>
+      <div class="kpi good" style="cursor:pointer" title="Filtrar: bajo precio (≥15%)" onclick="kpiFilter('precio')"><div class="lbl">Bajo precio (≥15%)</div><div class="val" id="k-precio"></div><div class="sub">vs. precio justo</div></div>
+      <div class="kpi blue" style="cursor:pointer" title="Filtrar: bajo km/año" onclick="kpiFilter('km')"><div class="lbl">Bajo kilometraje</div><div class="val" id="k-km"></div><div class="sub">&lt; 10.000 km/año</div></div>
+      <div class="kpi blue" style="cursor:pointer" title="Filtrar: detectados hoy" onclick="kpiFilter('nuevos')"><div class="lbl">Nuevos hoy</div><div class="val" id="kpi-nuevos">—</div><div class="sub" id="kpi-nuevos-sub">detectados hoy</div></div>
+      <div class="kpi" style="cursor:pointer" title="Ver todas las oportunidades (sin filtro)" onclick="kpiFilter('todos')"><div class="lbl">Avisos analizados</div><div class="val" id="k-tot"></div><div class="sub">captura más reciente</div></div>
     </div>
     <div class="viewbtns">
       <button class="vbtn active" data-f="oro">Oro <span id="vb-oro"></span></button>
@@ -1052,7 +1052,7 @@ const fM=n=>'$'+new Intl.NumberFormat('es-CL').format(Math.round(n));
 
 // Header
 const caps=DATA.capturas;
-document.getElementById('cap').innerHTML=`captura analizada<br><b>${DATA.captura_analizada}</b> · ${f0(DATA.resumen.total)} avisos`;
+document.getElementById('cap').innerHTML=`captura analizada<br><b>${(DATA.generado||DATA.captura_analizada||'').replace('T',' ').slice(0,16)}</b> · ${f0(DATA.resumen.total)} avisos`;
 document.getElementById('foot').textContent='';
 
 // Tabs
@@ -1265,20 +1265,35 @@ document.addEventListener('click',e=>{
 (function(){
   try{
     let nuevos=0; const idsNuevos=new Set();
-    for(const k in DEPU) for(const r of DEPU[k]) if(r[15]===0){nuevos++; idsNuevos.add(r[0]);}
+    const _depu=(DATA.depuracion_avisos||{});
+    for(const k in _depu) for(const r of _depu[k]) if(r[15]===0){nuevos++; idsNuevos.add(r[0]);}
     const opsNuevas=(DATA.oportunidades||[]).filter(o=>idsNuevos.has(o.id)&&(o.f_oro||o.f_precio)).length;
     const el=document.getElementById('kpi-nuevos');
     if(el){el.textContent=nuevos.toLocaleString('es-CL');
       document.getElementById('kpi-nuevos-sub').textContent=opsNuevas+' son oportunidades';}
   }catch(e){}
 })();
+window.kpiFilter=function(w){
+  if(w==='nuevos'){var f=document.getElementById('op-frescura'); if(f){f.value='0';} renderOps();
+    var t=document.querySelector('#radar .table-scroll'); if(t && t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'}); return;}
+  if(w==='todos'){
+    ['op-buscar','op-pmax'].forEach(function(id){var e=document.getElementById(id); if(e) e.value='';});
+    var fr=document.getElementById('op-frescura'); if(fr) fr.value='';
+    var ve=document.getElementById('op-vendedor'); if(ve) ve.value='';
+    var co=document.getElementById('op-coment'); if(co) co.value='';
+    if(window.opAnioLimpiar) window.opAnioLimpiar();
+    document.querySelectorAll('.vbtn[data-f]').forEach(function(x){x.classList.remove('active');});
+    opView='todos'; renderOps(); return;
+  }
+  var b=document.querySelector('.vbtn[data-f="'+w+'"]'); if(b) b.click();
+};
 function renderOps(){
   const q=document.getElementById('op-buscar').value.toLowerCase().trim();
   const fc=document.getElementById('op-coment').value;
   const flag=opView==='oro'?'f_oro':opView==='precio'?'f_precio':'f_km';
   const fv=document.getElementById('op-vendedor').value;
   let rows=ops.filter(o=>{
-    if(!o[flag]) return false;
+    if(opView!=='todos' && !o[flag]) return false;
     if(fv && o.entidad!==fv) return false;
     if(window._opAnios.size && !window._opAnios.has(o.año)) return false;
     const _pm=(+document.getElementById('op-pmax').value||0)*1e6;
