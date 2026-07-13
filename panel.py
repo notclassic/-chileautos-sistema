@@ -55,7 +55,8 @@ def acciones(params):
             pass
         pasos = [
             ("1/5", f"(echo 1/5 bajando catalogo)> etapa_actual.txt"
-                    f" & python actualizar_incremental.py{_tel}"),
+                    f" & python actualizar_incremental.py{_tel}"
+                    f" && python marcar_base.py"),
             ("2/5", "(echo 2/5 descripciones)> etapa_actual.txt"
                     " && python enriquecer_comentarios.py --solo-nuevos"),
             ("3/5", "(echo 3/5 fichas tecnicas)> etapa_actual.txt"
@@ -82,6 +83,7 @@ def acciones(params):
             f"python marcar.py inicio"
             f" & (echo 1/5 bajando catalogo)> etapa_actual.txt"
             f" & python actualizar_incremental.py{tel}"
+            f" && python marcar_base.py"
             f" && (echo 2/5 descripciones)> etapa_actual.txt"
             f" && python enriquecer_comentarios.py --solo-nuevos"
             f" && (echo 3/5 fichas tecnicas)> etapa_actual.txt"
@@ -101,6 +103,7 @@ def acciones(params):
         "incremental": (
             "Solo base" + con_tel,
             f"python marcar.py inicio & python actualizar_incremental.py{tel}"
+            f" && python marcar_base.py"
             f" && python actualizar.py --solo-motor & python marcar.py fin",
         ),
         # espejo de la cadena, para retomar donde se cayó (sin límite)
